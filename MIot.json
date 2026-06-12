@@ -524,5 +524,23 @@
             "from_folder": null,
             "label": "Lightweight flywheel"
         }
-    ]
+    ],
+    "maintenance_log": {
+        "unit": "miles",
+        "current_odometer": 96000,
+        "items": [
+            {
+                "name": "Oil",
+                "interval": 94500,
+                "unit": "miles",
+                "history": [
+                    {
+                        "date": "2026-06-12",
+                        "odometer": 96000,
+                        "notes": ""
+                    }
+                ]
+            }
+        ]
+    }
 }

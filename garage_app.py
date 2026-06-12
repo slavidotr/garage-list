@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
-import json, os, csv, webbrowser, copy
+import json, os, csv, webbrowser, copy, datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -85,6 +85,8 @@ class GarageApp:
         self._drag_item = None
         self._drag_indicator = None
         self._folder_open = {}
+        self._maint_id_map = {}
+        self.maintenance_log = {"unit": "km", "current_odometer": 0, "items": []}
 
         self.setup_ui()
         self.load()
@@ -130,13 +132,15 @@ class GarageApp:
         style.configure("Vertical.TScrollbar", background=t["btn_bg"], troughcolor=t["bg"],
                                              arrowcolor=t["fg"])
 
-        for ts in ("Build.Treeview", "Budget.Treeview"):
+        for ts in ("Build.Treeview", "Budget.Treeview", "Maint.Treeview"):
             rh = 28 if ts == "Build.Treeview" else 26
             style.configure(ts, background=t["tree_bg"], foreground=t["tree_fg"],
                              fieldbackground=t["tree_bg"], font=("Arial", 12), rowheight=rh)
             style.map(ts, background=[("selected", t["tree_sel_bg"])],
                       foreground=[("selected", t["tree_sel_fg"])])
         style.configure("Budget.Treeview.Heading", background=t["btn_bg"],
+                         foreground=t["fg"], font=("Arial", 11, "bold"))
+        style.configure("Maint.Treeview.Heading",  background=t["btn_bg"],
                          foreground=t["fg"], font=("Arial", 11, "bold"))
 
         self.root.configure(bg=t["bg"])
@@ -159,6 +163,15 @@ class GarageApp:
         self.budget_tree.tag_configure("folder_row", font=("Arial", 12, "bold"), foreground=t["folder_fg"])
         self.budget_tree.tag_configure("total_row",  font=("Arial", 12, "bold"), foreground=t["total_fg"])
         self.budget_tree.tag_configure("sep_row",    foreground=t["sep"])
+        ok_c      = "#2e7d32" if self._theme == "light" else "#4caf50"
+        soon_c    = "#e65100" if self._theme == "light" else "#ff8a50"
+        overdue_c = "#c62828" if self._theme == "light" else "#ef5350"
+        gray_c    = "#888888" if self._theme == "light" else "#aaaaaa"
+        self.maint_tree.tag_configure("maint_ok",      foreground=ok_c)
+        self.maint_tree.tag_configure("maint_soon",    foreground=soon_c)
+        self.maint_tree.tag_configure("maint_overdue", foreground=overdue_c)
+        self.maint_tree.tag_configure("maint_new",     foreground=gray_c)
+        self.maint_tree.tag_configure("maint_history", foreground=gray_c)
 
     def _toggle_theme(self):
         self._theme = "dark" if self._theme == "light" else "light"
@@ -180,22 +193,28 @@ class GarageApp:
 
         self.builder_tab = ttk.Frame(self.notebook)
         self.budget_tab  = ttk.Frame(self.notebook)
+        self.maint_tab   = ttk.Frame(self.notebook)
         self.help_tab    = ttk.Frame(self.notebook)
 
         self.notebook.add(self.builder_tab, text="Build Planner")
         self.notebook.add(self.budget_tab,  text="Budget")
+        self.notebook.add(self.maint_tab,   text="Maintenance Log")
         self.notebook.add(self.help_tab,    text="What can I do?")
 
         self.build_builder_ui()
         self.build_budget_ui()
+        self.build_maintenance_ui()
         self.build_help_ui()
 
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_change)
         self._apply_theme()
 
     def _on_tab_change(self, _event=None):
-        if self.notebook.index(self.notebook.select()) == 1:
+        idx = self.notebook.index(self.notebook.select())
+        if idx == 1:
             self._refresh_budget()
+        elif idx == 2:
+            self._refresh_maintenance()
 
     # ── BUILD PLANNER TAB ────────────────────────────────────────────────────
     def build_builder_ui(self):
@@ -475,6 +494,21 @@ WHAT YOU CAN DO:
 ✔ Dark mode toggle (🌙 button, top right)
 ✔ Each build is its own .json file
 
+MAINTENANCE LOG TAB:
+
+✔ Track service history for any component (oil, brakes, filters, etc.)
+✔ Set a service interval (km or miles) per component
+✔ Log each service with date, odometer reading, and notes
+✔ Status updates automatically: OK / Due soon / OVERDUE
+✔ "Due soon" triggers when within 10% of the interval remaining
+✔ Expand a component to see its full service history
+✔ Double-click a component → Log Service dialog
+✔ Double-click a history entry → Edit that entry
+✔ Right-click for Log Service / Edit Item / Delete options
+✔ Toggle km / miles with the unit button
+✔ Current odometer field updates status for all components at once
+✔ Maintenance history is saved with each build profile
+
 KEYBOARD SHORTCUTS:
 
   Ctrl+S      Save
@@ -493,6 +527,334 @@ HOW TO USE:
 5. Drag and drop to organise — drop onto a folder to move inside
 """)
         text.config(state="disabled")
+
+    # ── MAINTENANCE LOG TAB ──────────────────────────────────────────────────
+    def build_maintenance_ui(self):
+        top = ttk.Frame(self.maint_tab)
+        top.pack(fill="x", pady=4, padx=4)
+        ttk.Button(top, text="Add Item",    command=self._add_maint_item).pack(side="left", padx=2)
+        ttk.Button(top, text="Log Service", command=self._log_service).pack(side="left", padx=2)
+        ttk.Separator(top, orient="vertical").pack(side="left", fill="y", padx=8)
+        ttk.Label(top, text="Odometer:", font=("Arial", 11)).pack(side="left", padx=(2, 4))
+        self.odo_var = tk.StringVar(value="0")
+        odo_entry = ttk.Entry(top, textvariable=self.odo_var, width=10, font=("Arial", 11))
+        odo_entry.pack(side="left")
+        odo_entry.bind("<FocusOut>", self._on_odo_change)
+        odo_entry.bind("<Return>",   self._on_odo_change)
+        self.unit_btn = ttk.Button(top, text="km", command=self._toggle_maint_unit, width=5)
+        self.unit_btn.pack(side="left", padx=4)
+
+        cols = ("interval", "last_km", "next_km", "status_col")
+        self.maint_tree = ttk.Treeview(
+            self.maint_tab, columns=cols, show="tree headings", style="Maint.Treeview")
+        self.maint_tree.heading("#0",         text="Component",    anchor="w")
+        self.maint_tree.heading("interval",   text="Interval",     anchor="e")
+        self.maint_tree.heading("last_km",    text="Last Service", anchor="e")
+        self.maint_tree.heading("next_km",    text="Next Due",     anchor="e")
+        self.maint_tree.heading("status_col", text="Status",       anchor="center")
+        self.maint_tree.column("#0",         stretch=True, minwidth=160)
+        self.maint_tree.column("interval",   width=120, anchor="e", stretch=False)
+        self.maint_tree.column("last_km",    width=130, anchor="e", stretch=False)
+        self.maint_tree.column("next_km",    width=130, anchor="e", stretch=False)
+        self.maint_tree.column("status_col", width=130, anchor="center", stretch=False)
+        self.maint_tree.tag_configure("maint_ok",      foreground="#2e7d32")
+        self.maint_tree.tag_configure("maint_soon",    foreground="#e65100")
+        self.maint_tree.tag_configure("maint_overdue", foreground="#c62828")
+        self.maint_tree.tag_configure("maint_new",     foreground="#888888")
+        self.maint_tree.tag_configure("maint_history", foreground="#888888")
+        sb = ttk.Scrollbar(self.maint_tab, command=self.maint_tree.yview)
+        self.maint_tree.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.maint_tree.pack(fill="both", expand=True, padx=10, pady=(6, 10))
+        self.maint_tree.bind("<Double-1>", self._on_maint_double_click)
+        self.maint_tree.bind("<Button-3>", self._on_maint_right_click)
+        self.maint_tree.bind("<Delete>",   lambda e: self._delete_maint_item())
+
+    def _refresh_maintenance(self):
+        self._maint_id_map = {}
+        for node in self.maint_tree.get_children():
+            self.maint_tree.delete(node)
+        unit    = self.maintenance_log.get("unit", "km")
+        current = self.maintenance_log.get("current_odometer", 0)
+        self.odo_var.set(str(current))
+        self.unit_btn.config(text=unit)
+        for item in self.maintenance_log.get("items", []):
+            history   = item.get("history", [])
+            interval  = item.get("interval", 0)
+            item_unit = item.get("unit", unit)
+            last_odo  = max((h.get("odometer", 0) for h in history), default=None)
+            next_due  = (last_odo + interval) if (last_odo is not None and interval) else None
+            if last_odo is None:
+                tag, status_text = "maint_new", "—"
+            elif next_due is not None and current >= next_due:
+                tag, status_text = "maint_overdue", "OVERDUE"
+            elif next_due is not None and interval and current >= next_due - interval * 0.1:
+                tag, status_text = "maint_soon", "Due soon"
+            else:
+                tag, status_text = "maint_ok", "OK"
+            u            = f" {item_unit}"
+            interval_str = f"{interval:,}{u}" if interval else "—"
+            last_str     = f"{last_odo:,}{u}" if last_odo is not None else "—"
+            next_str     = f"{next_due:,}{u}" if next_due is not None else "—"
+            node = self.maint_tree.insert(
+                "", "end", text=f"  {item['name']}",
+                values=(interval_str, last_str, next_str, status_text),
+                tags=(tag,), open=False)
+            self._maint_id_map[node] = item
+            for h in sorted(history, key=lambda x: x.get("odometer", 0), reverse=True):
+                h_odo   = h.get("odometer", 0)
+                h_date  = h.get("date", "")
+                h_note  = h.get("notes", "")
+                preview = (h_note[:48] + "…") if len(h_note) > 48 else h_note
+                child   = self.maint_tree.insert(
+                    node, "end", text=f"    {h_date}",
+                    values=("", f"{h_odo:,} {item_unit}", "", preview),
+                    tags=("maint_history",))
+                self._maint_id_map[child] = ("history", h, item)
+
+    def _on_odo_change(self, _event=None):
+        try:
+            val = max(0, int(self.odo_var.get().replace(",", "").strip()))
+        except (ValueError, AttributeError):
+            val = self.maintenance_log.get("current_odometer", 0)
+        self.odo_var.set(str(val))
+        self.maintenance_log["current_odometer"] = val
+        self._mark_dirty()
+        self._refresh_maintenance()
+
+    def _toggle_maint_unit(self):
+        new_unit = "miles" if self.maintenance_log.get("unit", "km") == "km" else "km"
+        self.maintenance_log["unit"] = new_unit
+        self.unit_btn.config(text=new_unit)
+        self._mark_dirty()
+        self._refresh_maintenance()
+
+    def _add_maint_item(self):
+        self._open_maint_item_dialog(item=None)
+
+    def _open_maint_item_dialog(self, item=None):
+        editing = item is not None
+        dialog  = tk.Toplevel(self.root)
+        dialog.title("Edit Item" if editing else "Add Maintenance Item")
+        dialog.geometry("400x215")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        self.center_on_main(dialog)
+        self._theme_dialog(dialog)
+        global_unit = self.maintenance_log.get("unit", "km")
+        pad  = {"padx": 15, "pady": 8}
+        ttk.Label(dialog, text="Component Name:", font=("Arial", 11)).grid(
+            row=0, column=0, sticky="w", **pad)
+        name_var = tk.StringVar(value=item.get("name", "") if editing else "")
+        ttk.Entry(dialog, textvariable=name_var, width=28, font=("Arial", 11)).grid(
+            row=0, column=1, sticky="ew", padx=5, pady=8)
+        ttk.Label(dialog, text="Interval:", font=("Arial", 11)).grid(
+            row=1, column=0, sticky="w", **pad)
+        interval_var = tk.StringVar(value=str(item.get("interval", "")) if editing else "")
+        unit_var     = tk.StringVar(value=item.get("unit", global_unit) if editing else global_unit)
+        iv_frame = ttk.Frame(dialog)
+        iv_frame.grid(row=1, column=1, sticky="w", padx=5, pady=8)
+        ttk.Entry(iv_frame, textvariable=interval_var, width=12, font=("Arial", 11)).pack(side="left")
+        ttk.Combobox(iv_frame, textvariable=unit_var, values=["km", "miles"],
+                     state="readonly", width=6, font=("Arial", 11)).pack(side="left", padx=(4, 0))
+        def on_confirm():
+            name = name_var.get().strip()
+            if not name:
+                messagebox.showwarning("Missing Info", "Component name is required.", parent=dialog)
+                return
+            raw = interval_var.get().strip().replace(",", "").replace(".", "")
+            try:
+                interval = max(0, int(raw)) if raw else 0
+            except ValueError:
+                messagebox.showwarning("Invalid Interval", "Interval must be a whole number.", parent=dialog)
+                return
+            unit = unit_var.get()
+            if editing:
+                item["name"]     = name
+                item["interval"] = interval
+                item["unit"]     = unit
+            else:
+                self.maintenance_log.setdefault("items", []).append(
+                    {"name": name, "interval": interval, "unit": unit, "history": []})
+            self._mark_dirty(); self._refresh_maintenance(); dialog.destroy()
+        bf = ttk.Frame(dialog)
+        bf.grid(row=2, column=0, columnspan=2, pady=12)
+        ttk.Button(bf, text="Save" if editing else "Add", command=on_confirm).pack(side="left", padx=10)
+        ttk.Button(bf, text="Cancel", command=dialog.destroy).pack(side="left", padx=10)
+        dialog.columnconfigure(1, weight=1)
+        dialog.bind("<Return>", lambda e: on_confirm())
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
+
+    def _log_service(self, maint_item=None):
+        if maint_item is None:
+            node = self.maint_tree.focus()
+            if not node:
+                messagebox.showinfo("Select Item", "Select a component first.", parent=self.root)
+                return
+            parent = self.maint_tree.parent(node)
+            if parent:
+                node = parent
+            val = self._maint_id_map.get(node)
+            if not val or isinstance(val, tuple):
+                messagebox.showinfo("Select Item", "Select a component (not a history entry).", parent=self.root)
+                return
+            maint_item = val
+        dialog = tk.Toplevel(self.root)
+        dialog.title(f"Log Service — {maint_item.get('name', '')}")
+        dialog.geometry("420x280")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        self.center_on_main(dialog)
+        t         = self._theme_dialog(dialog)
+        item_unit = maint_item.get("unit", self.maintenance_log.get("unit", "km"))
+        cur       = self.maintenance_log.get("current_odometer", 0)
+        pad       = {"padx": 15, "pady": 8}
+        ttk.Label(dialog, text="Date (YYYY-MM-DD):", font=("Arial", 11)).grid(
+            row=0, column=0, sticky="w", **pad)
+        date_var = tk.StringVar(value=datetime.date.today().isoformat())
+        ttk.Entry(dialog, textvariable=date_var, width=16, font=("Arial", 11)).grid(
+            row=0, column=1, sticky="w", padx=5, pady=8)
+        ttk.Label(dialog, text=f"Odometer ({item_unit}):", font=("Arial", 11)).grid(
+            row=1, column=0, sticky="w", **pad)
+        odo_var = tk.StringVar(value=str(cur) if cur else "")
+        ttk.Entry(dialog, textvariable=odo_var, width=14, font=("Arial", 11)).grid(
+            row=1, column=1, sticky="w", padx=5, pady=8)
+        ttk.Label(dialog, text="Notes:", font=("Arial", 11)).grid(
+            row=2, column=0, sticky="nw", padx=15, pady=8)
+        notes_text = tk.Text(dialog, width=28, height=3, font=("Arial", 11),
+                              bg=t["text_bg"], fg=t["text_fg"],
+                              insertbackground=t["text_fg"], relief="solid", bd=1)
+        notes_text.grid(row=2, column=1, sticky="ew", padx=5, pady=8)
+        def on_confirm():
+            date    = date_var.get().strip()
+            raw_odo = odo_var.get().strip().replace(",", "").replace(" ", "")
+            notes   = notes_text.get("1.0", "end").rstrip("\n")
+            if not raw_odo:
+                messagebox.showwarning("Missing Info", "Odometer reading is required.", parent=dialog)
+                return
+            try:
+                odo = max(0, int(raw_odo))
+            except ValueError:
+                messagebox.showwarning("Invalid Odometer", "Odometer must be a whole number.", parent=dialog)
+                return
+            maint_item.setdefault("history", []).append(
+                {"date": date, "odometer": odo, "notes": notes})
+            if odo > self.maintenance_log.get("current_odometer", 0):
+                self.maintenance_log["current_odometer"] = odo
+            self._mark_dirty(); self._refresh_maintenance(); dialog.destroy()
+        bf = ttk.Frame(dialog)
+        bf.grid(row=3, column=0, columnspan=2, pady=12)
+        ttk.Button(bf, text="Log Service", command=on_confirm    ).pack(side="left", padx=10)
+        ttk.Button(bf, text="Cancel",      command=dialog.destroy).pack(side="left", padx=10)
+        dialog.columnconfigure(1, weight=1)
+        dialog.bind("<Return>", lambda e: on_confirm())
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
+
+    def _edit_history_entry(self, h_entry, parent_item):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Edit Service Entry")
+        dialog.geometry("420x280")
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+        self.center_on_main(dialog)
+        t         = self._theme_dialog(dialog)
+        item_unit = parent_item.get("unit", self.maintenance_log.get("unit", "km"))
+        pad       = {"padx": 15, "pady": 8}
+        ttk.Label(dialog, text="Date (YYYY-MM-DD):", font=("Arial", 11)).grid(
+            row=0, column=0, sticky="w", **pad)
+        date_var = tk.StringVar(value=h_entry.get("date", ""))
+        ttk.Entry(dialog, textvariable=date_var, width=16, font=("Arial", 11)).grid(
+            row=0, column=1, sticky="w", padx=5, pady=8)
+        ttk.Label(dialog, text=f"Odometer ({item_unit}):", font=("Arial", 11)).grid(
+            row=1, column=0, sticky="w", **pad)
+        odo_var = tk.StringVar(value=str(h_entry.get("odometer", "")))
+        ttk.Entry(dialog, textvariable=odo_var, width=14, font=("Arial", 11)).grid(
+            row=1, column=1, sticky="w", padx=5, pady=8)
+        ttk.Label(dialog, text="Notes:", font=("Arial", 11)).grid(
+            row=2, column=0, sticky="nw", padx=15, pady=8)
+        notes_text = tk.Text(dialog, width=28, height=3, font=("Arial", 11),
+                              bg=t["text_bg"], fg=t["text_fg"],
+                              insertbackground=t["text_fg"], relief="solid", bd=1)
+        notes_text.grid(row=2, column=1, sticky="ew", padx=5, pady=8)
+        if h_entry.get("notes"):
+            notes_text.insert("1.0", h_entry["notes"])
+        def on_confirm():
+            date    = date_var.get().strip()
+            raw_odo = odo_var.get().strip().replace(",", "").replace(" ", "")
+            notes   = notes_text.get("1.0", "end").rstrip("\n")
+            if not raw_odo:
+                messagebox.showwarning("Missing Info", "Odometer reading is required.", parent=dialog)
+                return
+            try:
+                odo = max(0, int(raw_odo))
+            except ValueError:
+                messagebox.showwarning("Invalid Odometer", "Odometer must be a whole number.", parent=dialog)
+                return
+            h_entry["date"]     = date
+            h_entry["odometer"] = odo
+            h_entry["notes"]    = notes
+            self._mark_dirty(); self._refresh_maintenance(); dialog.destroy()
+        bf = ttk.Frame(dialog)
+        bf.grid(row=3, column=0, columnspan=2, pady=12)
+        ttk.Button(bf, text="Save",   command=on_confirm    ).pack(side="left", padx=10)
+        ttk.Button(bf, text="Cancel", command=dialog.destroy).pack(side="left", padx=10)
+        dialog.columnconfigure(1, weight=1)
+        dialog.bind("<Return>", lambda e: on_confirm())
+        dialog.bind("<Escape>", lambda e: dialog.destroy())
+
+    def _delete_maint_item(self):
+        node = self.maint_tree.focus()
+        if not node:
+            return
+        val = self._maint_id_map.get(node)
+        if val is None:
+            return
+        if isinstance(val, tuple):
+            _, h_entry, parent_item = val
+            if messagebox.askyesno("Delete Entry",
+                    f'Delete service entry from {h_entry.get("date", "?")}?'):
+                parent_item.get("history", []).remove(h_entry)
+                self._mark_dirty(); self._refresh_maintenance()
+        else:
+            name = val.get("name", "")
+            if messagebox.askyesno("Delete Component",
+                    f'Delete "{name}" and all its service history?'):
+                self.maintenance_log["items"].remove(val)
+                self._mark_dirty(); self._refresh_maintenance()
+
+    def _on_maint_double_click(self, event):
+        node = self.maint_tree.identify_row(event.y)
+        if not node:
+            return
+        val = self._maint_id_map.get(node)
+        if val is None:
+            return
+        if isinstance(val, tuple):
+            _, h_entry, parent_item = val
+            self._edit_history_entry(h_entry, parent_item)
+        else:
+            self._log_service(maint_item=val)
+
+    def _on_maint_right_click(self, event):
+        node = self.maint_tree.identify_row(event.y)
+        if node:
+            self.maint_tree.selection_set(node)
+        val  = self._maint_id_map.get(node) if node else None
+        menu = tk.Menu(self.root, tearoff=0)
+        if val is not None and not isinstance(val, tuple):
+            menu.add_command(label="Log Service",      command=lambda: self._log_service(maint_item=val))
+            menu.add_command(label="Edit Item",        command=lambda: self._open_maint_item_dialog(item=val))
+            menu.add_separator()
+            menu.add_command(label="Delete Component", command=self._delete_maint_item)
+        elif val is not None and isinstance(val, tuple):
+            _, h_entry, parent_item = val
+            menu.add_command(label="Edit Entry",   command=lambda: self._edit_history_entry(h_entry, parent_item))
+            menu.add_command(label="Delete Entry", command=self._delete_maint_item)
+        if val is not None:
+            menu.tk_popup(event.x_root, event.y_root)
 
     # ── HELPERS ──────────────────────────────────────────────────────────────
     def center_on_main(self, dialog):
@@ -612,11 +974,12 @@ HOW TO USE:
         self._update_star_btn()
 
     def _parse_file(self, raw):
+        empty_maint = {"unit": "km", "current_odometer": 0, "items": []}
         if isinstance(raw, list):
-            return raw, []
+            return raw, [], empty_maint
         if isinstance(raw, dict) and "items" in raw:
-            return raw.get("items", []), raw.get("trash", [])
-        return None, None
+            return raw.get("items", []), raw.get("trash", []), raw.get("maintenance_log", empty_maint)
+        return None, None, None
 
     # ── DATA / TREE ──────────────────────────────────────────────────────────
     def refresh(self):
@@ -1210,6 +1573,7 @@ HOW TO USE:
             if ans:
                 self._save_file()
         self.data = []; self.trash = []
+        self.maintenance_log = {"unit": "km", "current_odometer": 0, "items": []}
         self.current_profile = name
         self._save_file(); self.refresh()
 
@@ -1247,7 +1611,11 @@ HOW TO USE:
             return
         try:
             with open(new_path, "w") as f:
-                json.dump({"items": copy.deepcopy(self.data), "trash": []}, f, indent=4)
+                json.dump({
+                    "items": copy.deepcopy(self.data),
+                    "trash": [],
+                    "maintenance_log": copy.deepcopy(self.maintenance_log),
+                }, f, indent=4)
             messagebox.showinfo("Duplicated", f'Build saved as "{new_name}".')
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -1314,7 +1682,11 @@ HOW TO USE:
     def _save_file(self):
         filepath = os.path.join(BASE_DIR, f"{self.current_profile}.json")
         with open(filepath, "w") as f:
-            json.dump({"items": self.data, "trash": self.trash}, f, indent=4)
+            json.dump({
+                "items": self.data,
+                "trash": self.trash,
+                "maintenance_log": self.maintenance_log,
+            }, f, indent=4)
         self._dirty = False
         self._update_title()
         self._save_config()
@@ -1343,11 +1715,11 @@ HOW TO USE:
         except Exception as e:
             messagebox.showerror("Load Failed", f"Could not read file:\n{e}")
             return
-        items, trash = self._parse_file(raw)
+        items, trash, maint = self._parse_file(raw)
         if items is None:
             messagebox.showerror("Invalid File", "This file is not a valid build.")
             return
-        self.data = items; self.trash = trash
+        self.data = items; self.trash = trash; self.maintenance_log = maint
         self.current_profile = os.path.splitext(os.path.basename(path))[0]
         self._dirty = False
         self._save_config(); self.refresh()
@@ -1356,20 +1728,21 @@ HOW TO USE:
         def try_load(name):
             path = os.path.join(BASE_DIR, f"{name}.json")
             if not os.path.exists(path):
-                return None, None
+                return None, None, None
             try:
                 with open(path, "r") as f:
                     return self._parse_file(json.load(f))
             except Exception:
-                return None, None
+                return None, None, None
 
         cfg = self._load_config()
         self.favourite = cfg.get("favourite")
 
         for name in filter(None, [cfg.get("favourite"), cfg.get("default")]):
-            items, trash = try_load(name)
+            items, trash, maint = try_load(name)
             if items is not None:
-                self.data, self.trash, self.current_profile = items, trash, name
+                self.data, self.trash, self.maintenance_log = items, trash, maint
+                self.current_profile = name
                 self._dirty = False; self.refresh(); return
 
         for filename in sorted(os.listdir(BASE_DIR)):
@@ -1377,9 +1750,9 @@ HOW TO USE:
                 continue
             try:
                 with open(os.path.join(BASE_DIR, filename), "r") as f:
-                    items, trash = self._parse_file(json.load(f))
+                    items, trash, maint = self._parse_file(json.load(f))
                 if items is not None:
-                    self.data, self.trash = items, trash
+                    self.data, self.trash, self.maintenance_log = items, trash, maint
                     self.current_profile = os.path.splitext(filename)[0]
                     self._dirty = False; self.refresh(); return
             except Exception:
@@ -1387,6 +1760,7 @@ HOW TO USE:
 
         self.data = json.loads(json.dumps(DEFAULT_CONTENT))
         self.trash = []; self.current_profile = "Default"
+        self.maintenance_log = {"unit": "km", "current_odometer": 0, "items": []}
         self._save_file(); self._dirty = False; self.refresh()
 
 
