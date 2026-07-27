@@ -5,5 +5,17 @@ service cloud.firestore {
     match /users/{userId}/builds/{buildId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    match /users/{userId}/workouts/{workoutId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/logs/{logId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/nutrition/{date} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/mealplans/{planId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }

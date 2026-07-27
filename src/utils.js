@@ -197,4 +197,4 @@ export function moveToFolder(items, partId, targetFolderId) {
   return insertIntoFolder(withoutPart, removed, targetFolderId)
 }
 
-export const EMPTY_MAINT = { unit: 'km', current_odometer: 0, items: [] }
+export const EMPTY_MAINT = { unit: 'km', current_odometer: 0, items: [], parts: [] }

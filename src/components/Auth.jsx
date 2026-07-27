@@ -4,40 +4,63 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   updateProfile,
+  sendPasswordResetEmail,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../firebase'
+import { useLang, LANGS } from '../i18n'
 
 export default function Auth() {
-  const [mode,     setMode]     = useState('login')   // 'login' | 'register'
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [name,     setName]     = useState('')
-  const [error,    setError]    = useState('')
-  const [busy,     setBusy]     = useState(false)
+  const { t, lang, setLang } = useLang()
+  const [mode,       setMode]       = useState('login')
+  const [email,      setEmail]      = useState('')
+  const [password,   setPassword]   = useState('')
+  const [name,       setName]       = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
+  const [error,      setError]      = useState('')
+  const [resetSent,  setResetSent]  = useState(false)
+  const [busy,       setBusy]       = useState(false)
 
   async function submit(e) {
     e.preventDefault()
-    setError(''); setBusy(true)
+    setError(''); setResetSent(false); setBusy(true)
     try {
       if (mode === 'login') {
+        await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
         await signInWithEmailAndPassword(auth, email, password)
       } else {
         const cred = await createUserWithEmailAndPassword(auth, email, password)
         if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() })
       }
     } catch (err) {
-      setError(friendlyError(err.code))
+      setError(friendlyError(err.code, t))
     } finally {
       setBusy(false)
     }
   }
 
   async function googleLogin() {
-    setError(''); setBusy(true)
+    setError(''); setResetSent(false); setBusy(true)
     try {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
       await signInWithPopup(auth, googleProvider)
     } catch (err) {
-      setError(friendlyError(err.code))
+      setError(friendlyError(err.code, t))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) { setError(t('auth.err.resetNoEmail')); return }
+    setError(''); setBusy(true)
+    try {
+      await sendPasswordResetEmail(auth, email.trim())
+      setResetSent(true)
+    } catch (err) {
+      setError(friendlyError(err.code, t))
     } finally {
       setBusy(false)
     }
@@ -46,40 +69,82 @@ export default function Auth() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>🔧 Garage</h1>
-        <p className="subtitle">Build Planner &amp; Maintenance Log</p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          {Object.entries(LANGS).map(([code, label]) => (
+            <button
+              key={code}
+              onClick={() => setLang(code)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px',
+                fontSize: 12, color: lang === code ? 'var(--accent)' : 'var(--fg2)',
+                fontWeight: lang === code ? 700 : 400,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <h1>{t('auth.title')}</h1>
+        <p className="subtitle">{t('auth.subtitle')}</p>
 
         <button className="btn btn-google btn-full" onClick={googleLogin} disabled={busy}>
-          <GoogleIcon /> Continue with Google
+          <GoogleIcon /> {t('auth.google')}
         </button>
 
-        <div className="auth-divider">or</div>
+        <div className="auth-divider">{t('auth.or')}</div>
 
         <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {mode === 'register' && (
             <div className="field">
-              <label>Name</label>
-              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoComplete="name" />
+              <label>{t('auth.name')}</label>
+              <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder={t('auth.namePlaceholder')} autoComplete="name" />
             </div>
           )}
           <div className="field">
-            <label>Email</label>
-            <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" />
+            <label>{t('auth.email')}</label>
+            <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t('auth.emailPlaceholder')} required autoComplete="email" />
           </div>
           <div className="field">
-            <label>Password</label>
-            <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            <label>{t('auth.password')}</label>
+            <input className="input" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('auth.passwordPlaceholder')} required autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
           </div>
+
+          {mode === 'login' && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, color: 'var(--fg2)', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--accent)' }}
+                />
+                {t('auth.rememberMe')}
+              </label>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={busy}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--accent)', padding: 0 }}
+              >
+                {t('auth.forgotPassword')}
+              </button>
+            </div>
+          )}
+
+          {resetSent && (
+            <p style={{ fontSize: 13, color: 'var(--accent)', margin: 0 }}>{t('auth.resetSent')}</p>
+          )}
           {error && <p className="auth-error">{error}</p>}
           <button className="btn btn-primary btn-full" type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
+            {busy ? '…' : mode === 'login' ? t('auth.login') : t('auth.createAccount')}
           </button>
         </form>
 
         <p className="auth-toggle">
           {mode === 'login'
-            ? <>No account? <button onClick={() => setMode('register')}>Sign up</button></>
-            : <>Already have an account? <button onClick={() => setMode('login')}>Log in</button></>
+            ? <>{t('auth.noAccount')} <button onClick={() => { setMode('register'); setError(''); setResetSent(false) }}>{t('auth.signup')}</button></>
+            : <>{t('auth.haveAccount')} <button onClick={() => { setMode('login'); setError(''); setResetSent(false) }}>{t('auth.login')}</button></>
           }
         </p>
       </div>
@@ -98,15 +163,15 @@ function GoogleIcon() {
   )
 }
 
-function friendlyError(code) {
+function friendlyError(code, t) {
   const map = {
-    'auth/user-not-found':    'No account with that email.',
-    'auth/wrong-password':    'Incorrect password.',
-    'auth/email-already-in-use': 'Email already registered.',
-    'auth/weak-password':     'Password must be at least 6 characters.',
-    'auth/invalid-email':     'Invalid email address.',
-    'auth/popup-closed-by-user': 'Sign-in cancelled.',
-    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/user-not-found':       t('auth.err.noUser'),
+    'auth/wrong-password':       t('auth.err.wrongPassword'),
+    'auth/email-already-in-use': t('auth.err.emailInUse'),
+    'auth/weak-password':        t('auth.err.weakPassword'),
+    'auth/invalid-email':        t('auth.err.invalidEmail'),
+    'auth/popup-closed-by-user': t('auth.err.cancelled'),
+    'auth/invalid-credential':   t('auth.err.invalidCredential'),
   }
-  return map[code] || 'Something went wrong. Try again.'
+  return map[code] || t('auth.err.default')
 }

@@ -1,9 +1,11 @@
 import { STATUS_OPTIONS, STATUS_INFO, sumPrices, fmt } from '../utils'
+import { useLang } from '../i18n'
 
 export default function Budget({ items }) {
+  const { t } = useLang()
   const totals = { planned: 0, ordered: 0, installed: 0, sold: 0 }
 
-  function collectRows(items, folderName) {
+  function collectRows(items) {
     const rows = []
     for (const item of items) {
       if (item.type === 'folder') {
@@ -35,8 +37,8 @@ export default function Budget({ items }) {
   if (items.length === 0) {
     return (
       <div className="empty">
-        <h3>No parts yet</h3>
-        <p>Add parts in the Planner tab to see the budget breakdown.</p>
+        <h3>{t('budget.noParts')}</h3>
+        <p>{t('budget.noPartsHint')}</p>
       </div>
     )
   }
@@ -46,8 +48,8 @@ export default function Budget({ items }) {
       <table className="budget-table">
         <thead>
           <tr>
-            <th>Part / Category</th>
-            <th style={{ textAlign: 'right' }}>Cost</th>
+            <th>{t('budget.colPart')}</th>
+            <th style={{ textAlign: 'right' }}>{t('budget.colCost')}</th>
           </tr>
         </thead>
         <tbody>
@@ -55,7 +57,12 @@ export default function Budget({ items }) {
             if (row.kind === 'folder') {
               return (
                 <tr key={i} className="budget-folder">
-                  <td>📁 {row.name} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--fg2)' }}>{row.inst}/{row.count} installed</span></td>
+                  <td>
+                    📁 {row.name}{' '}
+                    <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--fg2)' }}>
+                      {t('budget.installed', { n: `${row.inst}/${row.count}` })}
+                    </span>
+                  </td>
                   <td>{fmt(row.total)}</td>
                 </tr>
               )
@@ -79,7 +86,7 @@ export default function Budget({ items }) {
             const si = STATUS_INFO[s]
             return (
               <tr key={s}>
-                <td style={{ color: si.colorVar, paddingLeft: 28 }}>{si.symbol}{si.label}</td>
+                <td style={{ color: si.colorVar, paddingLeft: 28 }}>{si.symbol}{t(`status.${s}`)}</td>
                 <td style={{ color: si.colorVar }}>{fmt(totals[s])}</td>
               </tr>
             )
@@ -87,7 +94,7 @@ export default function Budget({ items }) {
 
           <tr className="budget-sep"><td colSpan={2} /></tr>
           <tr className="budget-total">
-            <td>Total</td>
+            <td>{t('budget.total')}</td>
             <td>{fmt(grand)}</td>
           </tr>
         </tbody>

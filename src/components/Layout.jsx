@@ -4,14 +4,15 @@ import { auth } from '../firebase'
 import { useTheme } from '../App'
 import { useBuilds } from '../hooks/useBuilds'
 import { ensureIds, EMPTY_MAINT } from '../utils'
+import { useLang, LANGS } from '../i18n'
 import BuildPlanner from './BuildPlanner'
 import Budget from './Budget'
 import Maintenance from './Maintenance'
-
-const TABS = ['Planner', 'Budget', 'Maintenance']
+import HelpModal from './HelpModal'
 
 export default function Layout({ user }) {
   const { theme, toggle: toggleTheme } = useTheme()
+  const { t, lang, setLang } = useLang()
   const { buildList, loading, createBuild, saveBuild, deleteBuild, renameBuild, setFavourite } = useBuilds(user.uid)
 
   const [currentBuild, setCurrentBuild] = useState(null)
@@ -21,7 +22,10 @@ export default function Layout({ user }) {
   const [newBuildName, setNewBuildName] = useState('')
   const [showNewBuild, setShowNewBuild] = useState(false)
   const [importError,  setImportError]  = useState(null)
+  const [helpOpen,     setHelpOpen]     = useState(false)
   const importRef = useRef()
+
+  const TABS = [t('tabs.planner'), t('tabs.budget'), t('tabs.maintenance')]
 
   // Auto-select favourite or first build
   useEffect(() => {
@@ -72,7 +76,6 @@ export default function Layout({ user }) {
     if (!name) return
     const id = await createBuild(name)
     setNewBuildName(''); setShowNewBuild(false)
-    // Load the new build after it appears in buildList
     setTimeout(() => {
       const b = { id, name, items: [], trash: [], maintenance_log: EMPTY_MAINT, isFavourite: false }
       loadBuild(b)
@@ -80,13 +83,13 @@ export default function Layout({ user }) {
   }
 
   async function handleDeleteBuild(id) {
-    if (!window.confirm('Delete this build? This cannot be undone.')) return
+    if (!window.confirm(t('layout.confirmDelete'))) return
     if (currentBuild?.id === id) setCurrentBuild(null)
     await deleteBuild(id)
   }
 
   async function handleRenameBuild(id, currentName) {
-    const name = window.prompt('New build name:', currentName)
+    const name = window.prompt(t('layout.renameBuild'), currentName)
     if (!name || name.trim() === currentName) return
     await renameBuild(id, name.trim())
     if (currentBuild?.id === id) setCurrentBuild(prev => ({ ...prev, name: name.trim() }))
@@ -108,7 +111,7 @@ export default function Layout({ user }) {
       const text = await file.text()
       parsed = JSON.parse(text)
     } catch {
-      setImportError('Could not parse file — make sure it is a valid Garage .json file.')
+      setImportError(t('layout.importErrParse'))
       return
     }
 
@@ -125,7 +128,7 @@ export default function Layout({ user }) {
         setDrawerOpen(false)
       }, 300)
     } catch {
-      setImportError('Failed to save the imported build. Try again.')
+      setImportError(t('layout.importErrSave'))
     }
   }
 
@@ -133,24 +136,24 @@ export default function Layout({ user }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="sidebar-header">
         <span>🔧 Garage</span>
-        <button className="btn-icon" title="Sign out" onClick={() => signOut(auth)}>↩</button>
+        <button className="btn-icon" title={t('layout.signOut')} onClick={() => signOut(auth)}>↩</button>
       </div>
       <div className="sidebar-builds">
-        {loading && <div style={{ padding: '12px', color: 'var(--fg2)', fontSize: 13 }}>Loading…</div>}
+        {loading && <div style={{ padding: '12px', color: 'var(--fg2)', fontSize: 13 }}>{t('layout.loading')}</div>}
         {buildList.map(b => (
           <div
             key={b.id}
             className={`build-item ${currentBuild?.id === b.id ? 'active' : ''}`}
             onClick={() => { loadBuild(b); setDrawerOpen(false) }}
           >
-            {b.isFavourite && <span title="Favourite">★</span>}
+            {b.isFavourite && <span title={t('layout.markFav')}>★</span>}
             <span className="build-item-name">{b.name}</span>
             <span className="build-actions" onClick={e => e.stopPropagation()}>
-              <button title="Rename" onClick={() => handleRenameBuild(b.id, b.name)}>✎</button>
-              <button title={b.isFavourite ? 'Unmark favourite' : 'Mark favourite'} onClick={() => handleFavourite(b.id, b.isFavourite)}>
+              <button title={t('layout.rename')} onClick={() => handleRenameBuild(b.id, b.name)}>✎</button>
+              <button title={b.isFavourite ? t('layout.unmarkFav') : t('layout.markFav')} onClick={() => handleFavourite(b.id, b.isFavourite)}>
                 {b.isFavourite ? '★' : '☆'}
               </button>
-              <button title="Delete build" onClick={() => handleDeleteBuild(b.id)}>✕</button>
+              <button title={t('layout.deleteBuild')} onClick={() => handleDeleteBuild(b.id)}>✕</button>
             </span>
           </div>
         ))}
@@ -162,15 +165,15 @@ export default function Layout({ user }) {
               autoFocus
               value={newBuildName}
               onChange={e => setNewBuildName(e.target.value)}
-              placeholder="Build name…"
+              placeholder={t('layout.buildNamePlaceholder')}
               style={{ flex: 1, fontSize: 12 }}
               onKeyDown={e => e.key === 'Escape' && setShowNewBuild(false)}
             />
-            <button className="btn btn-primary btn-sm" type="submit">Add</button>
+            <button className="btn btn-primary btn-sm" type="submit">{t('layout.add')}</button>
           </form>
         ) : (
           <button className="build-item" onClick={() => setShowNewBuild(true)} style={{ color: 'var(--accent)', fontWeight: 600 }}>
-            + New Build
+            {t('layout.newBuild')}
           </button>
         )}
 
@@ -179,7 +182,7 @@ export default function Layout({ user }) {
           onClick={() => importRef.current.click()}
           style={{ color: 'var(--fg2)', fontSize: 12 }}
         >
-          ↑ Import .json
+          {t('layout.importJson')}
         </button>
         <input
           ref={importRef}
@@ -194,8 +197,26 @@ export default function Layout({ user }) {
           </div>
         )}
       </div>
-      <div className="sidebar-footer" style={{ fontSize: 12, color: 'var(--fg2)' }}>
-        {user.displayName || user.email}
+
+      <div className="sidebar-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: 'var(--fg2)' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {user.displayName || user.email}
+        </span>
+        <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+          {Object.entries(LANGS).map(([code, label]) => (
+            <button
+              key={code}
+              onClick={() => setLang(code)}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                fontSize: 11, color: lang === code ? 'var(--accent)' : 'var(--fg2)',
+                fontWeight: lang === code ? 700 : 400,
+              }}
+            >
+              {code.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -213,13 +234,14 @@ export default function Layout({ user }) {
         <div className="header">
           <button className="btn-icon menu-btn" onClick={() => setDrawerOpen(true)}>☰</button>
           <div className={`header-title${dirty ? ' dirty' : ''}`}>
-            {currentBuild ? currentBuild.name : 'No build selected'}
+            {currentBuild ? currentBuild.name : t('layout.noBuildSelected')}
           </div>
           <div className="header-actions">
             {dirty && (
-              <button className="btn btn-primary btn-sm" onClick={handleSave}>Save</button>
+              <button className="btn btn-primary btn-sm" onClick={handleSave}>{t('layout.save')}</button>
             )}
-            <button className="btn-icon" onClick={toggleTheme} title="Toggle theme">
+            <button className="btn-icon" onClick={() => setHelpOpen(true)} title="Help">?</button>
+            <button className="btn-icon" onClick={toggleTheme} title={t('layout.toggleTheme')}>
               {theme === 'dark' ? '☀' : '🌙'}
             </button>
             <div className="user-avatar" title={user.email} onClick={() => signOut(auth)}>
@@ -231,8 +253,8 @@ export default function Layout({ user }) {
         {currentBuild ? (
           <>
             <div className="tabs">
-              {TABS.map((t, i) => (
-                <button key={t} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>
+              {TABS.map((label, i) => (
+                <button key={label} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{label}</button>
               ))}
             </div>
             <div className="tab-content">
@@ -254,11 +276,13 @@ export default function Layout({ user }) {
           </>
         ) : (
           <div className="empty">
-            <h3>No build selected</h3>
-            <p>Pick a build from the sidebar or create a new one.</p>
+            <h3>{t('layout.noBuildSelected')}</h3>
+            <p>{t('layout.noBuildHint')}</p>
           </div>
         )}
       </div>
+
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }

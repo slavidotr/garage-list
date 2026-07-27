@@ -425,6 +425,23 @@ select.input { appearance: auto; }
 .status-over { color: var(--maint-over); font-weight: 700; }
 .status-none { color: var(--fg2); }
 
+.maint-section-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 12px 8px; border-top: 1px solid var(--border);
+}
+.maint-section-header h3 { font-size: 14px; flex-shrink: 0; }
+.maint-section-meta { font-size: 12px; color: var(--fg2); flex: 1; }
+.maint-section-empty { padding: 4px 12px 16px; font-size: 13px; color: var(--fg2); }
+
+.maint-inline-parts { padding: 6px 12px 10px 32px; background: var(--surface2); }
+.maint-inline-parts-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; font-size: 11px; font-weight: 700; color: var(--fg2);
+  text-transform: uppercase; letter-spacing: 0.02em;
+}
+.maint-inline-parts-empty { font-size: 12px; color: var(--fg2); margin: 4px 0; }
+.maint-inline-parts .part-row { padding-left: 0; }
+
 /* ── Empty states ────────────────────────────────────────────────────────── */
 .empty {
   padding: 48px 24px;

@@ -4,11 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <meta name="theme-color" content="#1e1e1e" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <title>Garage</title>
     <link rel="manifest" href="/manifest.json" />
+    <style>
+      #root-loader {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: #1e1e1e;
+      }
+      #root-loader-spin {
+        width: 36px;
+        height: 36px;
+        border: 3px solid #2a2a2a;
+        border-top-color: #7c6af7;
+        border-radius: 50%;
+        animation: rl-spin .8s linear infinite;
+      }
+      @keyframes rl-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-
+    <div id="root">
+      <div id="root-loader"><div id="root-loader-spin"></div></div>
+    </div>
   </body>
 </html>

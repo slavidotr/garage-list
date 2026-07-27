@@ -6,12 +6,13 @@ import {
   sortFolder, wrapInFolder, moveToFolder,
   sumPrices, countParts, countInstalled, fmt,
 } from '../utils'
+import { useLang } from '../i18n'
 
 export default function BuildPlanner({ items, trash, onChange }) {
+  const { t } = useLang()
   const [search,    setSearch]    = useState('')
-  const [dialog,    setDialog]    = useState(null)   // null | { mode, item?, folderId? }
+  const [dialog,    setDialog]    = useState(null)
   const [trashOpen, setTrashOpen] = useState(false)
-  const [altDialog, setAltDialog] = useState(null)   // null | { item, opts, selectedIdx }
 
   const display = search ? filterItems(items, search) : items
 
@@ -48,39 +49,35 @@ export default function BuildPlanner({ items, trash, onChange }) {
   }
 
   function deletePart(item) {
-    if (!window.confirm(`Move "${item.part || item.name}" to trash?`)) return
+    if (!window.confirm(t('part.confirmDelete', { name: item.part || item.name }))) return
     const { newItems, removed, fromFolder } = removeItem(items, item.id)
     const label = item.part || item.name || '?'
-    const newTrash = [...trash, { item: removed, fromFolder, label }]
-    onChange(newItems, newTrash)
+    onChange(newItems, [...trash, { item: removed, fromFolder, label }])
   }
 
   function addFolder() {
-    const name = window.prompt('Folder name (e.g. Exhaust Setup):')
+    const name = window.prompt(t('folder.newName'))
     if (!name?.trim()) return
     const folder = { id: newId(), type: 'folder', name: name.trim(), children: [] }
     onChange([...items, folder], trash)
   }
 
   function renameFolder(item) {
-    const name = window.prompt('Rename folder:', item.name)
+    const name = window.prompt(t('folder.renameName'), item.name)
     if (!name?.trim() || name.trim() === item.name) return
     onChange(updateItem(items, item.id, { name: name.trim() }), trash)
   }
 
   function deleteFolder(item) {
     const n = (item.children || []).length
-    const msg = `Delete folder "${item.name}"${n ? ` and its ${n} item(s)` : ''}? Items go to trash.`
-    if (!window.confirm(msg)) return
-    const { newItems, removed, fromFolder } = removeItem(items, item.id)
-    const newTrash = [...trash, { item: removed, fromFolder, label: `📁 ${item.name}` }]
-    onChange(newItems, newTrash)
+    if (!window.confirm(t('folder.confirmDelete', { name: item.name, n }))) return
+    const { newItems, removed } = removeItem(items, item.id)
+    onChange(newItems, [...trash, { item: removed, fromFolder: null, label: `📁 ${item.name}` }])
   }
 
   function restoreItem(entry, index) {
     let newItems
     if (entry.fromFolder) {
-      // Find folder by name and append
       const folder = items.find(x => x.type === 'folder' && x.name === entry.fromFolder)
       if (folder) {
         newItems = updateItem(items, folder.id, { children: [...(folder.children || []), entry.item] })
@@ -90,8 +87,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
     } else {
       newItems = [...items, entry.item]
     }
-    const newTrash = trash.filter((_, i) => i !== index)
-    onChange(newItems, newTrash)
+    onChange(newItems, trash.filter((_, i) => i !== index))
   }
 
   function deleteTrashItem(index) {
@@ -100,9 +96,9 @@ export default function BuildPlanner({ items, trash, onChange }) {
 
   function handleMoveToFolder(item) {
     const folders = getFolderList(items)
-    if (!folders.length) { window.alert('No folders exist. Create one first.'); return }
+    if (!folders.length) { window.alert(t('folder.noFolders')); return }
     const names = folders.map((f, i) => `${i + 1}. ${f.name}`).join('\n')
-    const input = window.prompt(`Move to folder:\n${names}\n\n(Enter number or folder name, or leave blank for root)`)
+    const input = window.prompt(t('folder.movePrompt', { list: names }))
     if (input === null) return
     if (!input.trim()) {
       const { newItems: withoutItem, removed } = removeItem(items, item.id)
@@ -111,7 +107,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
     }
     const idx = parseInt(input) - 1
     const folder = !isNaN(idx) ? folders[idx] : folders.find(f => f.name.toLowerCase() === input.trim().toLowerCase())
-    if (!folder) { window.alert('Folder not found.'); return }
+    if (!folder) { window.alert(t('folder.notFound')); return }
     onChange(moveToFolder(items, item.id, folder.id), trash)
   }
 
@@ -120,7 +116,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
   }
 
   function handleWrapInFolder(item) {
-    const name = window.prompt('New folder name:')
+    const name = window.prompt(t('folder.renameName'))
     if (!name?.trim()) return
     onChange(wrapInFolder(items, item.id, name.trim()), trash)
   }
@@ -132,13 +128,13 @@ export default function BuildPlanner({ items, trash, onChange }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="toolbar">
-        <button className="btn btn-primary btn-sm" onClick={() => addPart(null)}>+ Part</button>
-        <button className="btn btn-ghost btn-sm"   onClick={addFolder}>+ Folder</button>
+        <button className="btn btn-primary btn-sm" onClick={() => addPart(null)}>{t('planner.addPart')}</button>
+        <button className="btn btn-ghost btn-sm"   onClick={addFolder}>{t('planner.addFolder')}</button>
         <div className="toolbar-sep" />
         <div className="search-wrap">
           <input
             className="input"
-            placeholder="Search…"
+            placeholder={t('planner.searchPlaceholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -154,9 +150,9 @@ export default function BuildPlanner({ items, trash, onChange }) {
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {display.length === 0 ? (
           <div className="empty">
-            <h3>{search ? 'No results' : 'No parts yet'}</h3>
-            <p>{search ? 'Try a different search.' : 'Add your first part to get started.'}</p>
-            {!search && <button className="btn btn-primary" onClick={() => addPart(null)}>+ Add Part</button>}
+            <h3>{search ? t('planner.noResults') : t('planner.noParts')}</h3>
+            <p>{search ? t('planner.noResultsHint') : t('planner.noPartsHint')}</p>
+            {!search && <button className="btn btn-primary" onClick={() => addPart(null)}>{t('planner.addFirstPart')}</button>}
           </div>
         ) : (
           <div className="tree">
@@ -179,7 +175,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
       </div>
 
       <div className="status-bar">
-        Total: {fmt(total)}  ·  {nInst}/{nParts} installed
+        {t('planner.statusBar', { amount: fmt(total), installed: nInst, total: nParts })}
       </div>
 
       {dialog && (
@@ -214,6 +210,7 @@ function ItemList({ items, nested, ...handlers }) {
 }
 
 function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddToFolder, ...rest }) {
+  const { t } = useLang()
   const [open, setOpen] = useState(true)
   const children = item.children || []
   const total    = sumPrices(children)
@@ -224,16 +221,16 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
       <div className="folder-header" onClick={() => setOpen(o => !o)}>
         <span className="folder-chevron">{open ? '▼' : '▶'}</span>
         <span className="folder-name">📁 {item.name}</span>
-        <span className="folder-meta">{inst}/{children.length} installed · {fmt(total)}</span>
+        <span className="folder-meta">{inst}/{children.length} · {fmt(total)}</span>
         <Dropdown items={[
-          { label: '+ Add Part',    onClick: (e) => { e.stopPropagation(); onAddToFolder(item.id) } },
-          { label: 'Rename',        onClick: (e) => { e.stopPropagation(); onRenameFolder(item) } },
+          { label: t('folder.addPart'),   onClick: (e) => { e.stopPropagation(); onAddToFolder(item.id) } },
+          { label: t('folder.rename'),    onClick: (e) => { e.stopPropagation(); onRenameFolder(item) } },
           { sep: true },
-          { label: 'Sort by name',   onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'name') } },
-          { label: 'Sort by status', onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'status') } },
-          { label: 'Sort by price',  onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'price') } },
+          { label: t('folder.sortName'),   onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'name') } },
+          { label: t('folder.sortStatus'), onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'status') } },
+          { label: t('folder.sortPrice'),  onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'price') } },
           { sep: true },
-          { label: 'Delete folder', danger: true, onClick: (e) => { e.stopPropagation(); onDeleteFolder(item) } },
+          { label: t('folder.delete'), danger: true, onClick: (e) => { e.stopPropagation(); onDeleteFolder(item) } },
         ]} />
       </div>
       {open && children.length > 0 && (
@@ -243,7 +240,10 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
       )}
       {open && children.length === 0 && (
         <div style={{ padding: '10px 24px', fontSize: 12, color: 'var(--fg2)' }}>
-          Empty — <button style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => onAddToFolder(item.id)}>add a part</button>
+          {t('planner.emptyFolder')}{' '}
+          <button style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => onAddToFolder(item.id)}>
+            {t('planner.addPartToFolder')}
+          </button>
         </div>
       )}
     </div>
@@ -251,6 +251,7 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
 }
 
 function PartRow({ item, nested, onEditPart, onDeletePart, onMoveUp, onMoveDown, onMoveToFolder, onWrapInFolder }) {
+  const { t } = useLang()
   const si    = STATUS_INFO[item.status] || STATUS_INFO.planned
   const qty   = parseInt(item.qty) || 1
   const price = (parseFloat(item.price) || 0) * qty
@@ -258,11 +259,7 @@ function PartRow({ item, nested, onEditPart, onDeletePart, onMoveUp, onMoveDown,
 
   return (
     <div className={`part-row ${nested ? 'nested' : ''}`}>
-      <div
-        className="status-dot"
-        style={{ background: si.colorVar }}
-        title={si.label}
-      />
+      <div className="status-dot" style={{ background: si.colorVar }} title={t(`status.${item.status}`)} />
       <div className="part-name">
         <div className="part-name-text" style={{ color: si.colorVar }}>
           {si.symbol}{item.part}
@@ -273,16 +270,16 @@ function PartRow({ item, nested, onEditPart, onDeletePart, onMoveUp, onMoveDown,
       {price > 0 && <div className="part-price">{fmt(price)}</div>}
       <div className="part-actions">
         {link && (
-          <button className="btn-icon" title="Open link" onClick={() => window.open(link, '_blank')}>🔗</button>
+          <button className="btn-icon" title={t('planner.openLink')} onClick={() => window.open(link, '_blank')}>🔗</button>
         )}
         <Dropdown items={[
-          { label: 'Edit',           onClick: () => onEditPart(item) },
-          { label: 'Move up',        onClick: () => onMoveUp(item.id) },
-          { label: 'Move down',      onClick: () => onMoveDown(item.id) },
-          { label: 'Move to folder', onClick: () => onMoveToFolder(item) },
-          { label: 'Wrap in folder', onClick: () => onWrapInFolder(item) },
+          { label: t('part.edit'),          onClick: () => onEditPart(item) },
+          { label: t('part.moveUp'),        onClick: () => onMoveUp(item.id) },
+          { label: t('part.moveDown'),      onClick: () => onMoveDown(item.id) },
+          { label: t('part.moveToFolder'),  onClick: () => onMoveToFolder(item) },
+          { label: t('part.wrapInFolder'),  onClick: () => onWrapInFolder(item) },
           { sep: true },
-          { label: 'Delete', danger: true, onClick: () => onDeletePart(item) },
+          { label: t('part.delete'), danger: true, onClick: () => onDeletePart(item) },
         ]} />
       </div>
     </div>
@@ -319,6 +316,7 @@ function Dropdown({ items: menuItems }) {
 
 /* ── Part Dialog ────────────────────────────────────────────────────────── */
 function PartDialog({ mode, item, onSave, onClose }) {
+  const { t } = useLang()
   const [form, setForm] = useState({
     part:    item?.part    || '',
     info:    item?.info    || '',
@@ -337,59 +335,59 @@ function PartDialog({ mode, item, onSave, onClose }) {
 
   function submit(e) {
     e.preventDefault()
-    if (!form.part.trim()) { setErrors({ part: 'Required' }); return }
+    if (!form.part.trim()) { setErrors({ part: t('partDialog.required') }); return }
     onSave(form)
   }
 
   return (
     <Modal onClose={onClose}>
       <div className="modal-header">
-        <h2>{mode === 'edit' ? 'Edit Part' : 'Add Part'}</h2>
+        <h2>{mode === 'edit' ? t('partDialog.editTitle') : t('partDialog.addTitle')}</h2>
         <button className="btn-icon" onClick={onClose}>✕</button>
       </div>
       <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div className="field">
-          <label>Part Name *</label>
-          <input className={`input ${errors.part ? 'input-error' : ''}`} value={form.part} onChange={e => set('part', e.target.value)} placeholder="e.g. Coilovers" autoFocus />
+          <label>{t('partDialog.name')}</label>
+          <input className={`input ${errors.part ? 'input-error' : ''}`} value={form.part} onChange={e => set('part', e.target.value)} placeholder={t('partDialog.namePlaceholder')} autoFocus />
           {errors.part && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{errors.part}</span>}
         </div>
         <div className="field">
-          <label>Info / Variant</label>
-          <input className="input" value={form.info} onChange={e => set('info', e.target.value)} placeholder="e.g. BC Racing BR Series" />
+          <label>{t('partDialog.info')}</label>
+          <input className="input" value={form.info} onChange={e => set('info', e.target.value)} placeholder={t('partDialog.infoPlaceholder')} />
         </div>
         <div className="field">
-          <label>Link</label>
+          <label>{t('partDialog.link')}</label>
           <div style={{ display: 'flex', gap: 6 }}>
-            <input className="input" value={form.link} onChange={e => set('link', e.target.value)} placeholder="https://…" style={{ flex: 1 }} />
-            {form.link && <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.open(form.link, '_blank')}>Open</button>}
+            <input className="input" value={form.link} onChange={e => set('link', e.target.value)} placeholder={t('partDialog.linkPlaceholder')} style={{ flex: 1 }} />
+            {form.link && <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.open(form.link, '_blank')}>{t('partDialog.open')}</button>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
           <div className="field" style={{ flex: 1 }}>
-            <label>Price (€)</label>
+            <label>{t('partDialog.price')}</label>
             <input className="input" value={form.price} onChange={e => set('price', e.target.value)} placeholder="0.00" inputMode="decimal" />
           </div>
           <div className="field" style={{ width: 80 }}>
-            <label>Qty</label>
+            <label>{t('partDialog.qty')}</label>
             <input className="input" type="number" min="1" value={form.qty} onChange={e => set('qty', e.target.value)} />
           </div>
         </div>
         <div className="field">
-          <label>Status</label>
+          <label>{t('partDialog.status')}</label>
           <select className="input" value={form.status} onChange={e => set('status', e.target.value)}>
-            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{STATUS_INFO[s].label}</option>)}
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(`status.${s}`)}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>Notes</label>
-          <textarea className="input" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Any notes…" rows={3} />
+          <label>{t('partDialog.notes')}</label>
+          <textarea className="input" value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={t('partDialog.notesPlaceholder')} rows={3} />
         </div>
         <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => setAltOpen(true)}>
-          Alternatives {form.options.length > 0 ? `(${form.options.length})` : ''}
+          {t('partDialog.alternatives')} {form.options.length > 0 ? `(${form.options.length})` : ''}
         </button>
         <div className="modal-footer">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary">{mode === 'edit' ? 'Save' : 'Add Part'}</button>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{t('partDialog.cancel')}</button>
+          <button type="submit" className="btn btn-primary">{mode === 'edit' ? t('partDialog.saveSubmit') : t('partDialog.addSubmit')}</button>
         </div>
       </form>
       {altOpen && (
@@ -406,33 +404,33 @@ function PartDialog({ mode, item, onSave, onClose }) {
 
 /* ── Alternatives Dialog ────────────────────────────────────────────────── */
 function AlternativesDialog({ options, selected, onUpdate, onClose }) {
+  const { t } = useLang()
   const [opts, setOpts]  = useState(options)
   const [selIdx, setSelIdx] = useState(() => options.findIndex(o => o.name === selected?.name))
 
   function addOpt() {
-    const name = window.prompt('Product name:')
+    const name = window.prompt(t('alt.productName'))
     if (!name?.trim()) return
-    const link = window.prompt('Product link (optional):') || ''
+    const link = window.prompt(t('alt.productLink')) || ''
     const newOpts = [...opts, { name: name.trim(), link }]
     setOpts(newOpts)
     if (selIdx === -1) setSelIdx(newOpts.length - 1)
   }
 
   function save() {
-    const sel = selIdx >= 0 ? opts[selIdx] : null
-    onUpdate(opts, sel)
+    onUpdate(opts, selIdx >= 0 ? opts[selIdx] : null)
     onClose()
   }
 
   return (
-    <Modal onClose={onClose} style={{ zIndex: 110 }}>
+    <Modal onClose={onClose}>
       <div className="modal-header">
-        <h2>Alternatives</h2>
+        <h2>{t('alt.title')}</h2>
         <button className="btn-icon" onClick={onClose}>✕</button>
       </div>
-      <p style={{ fontSize: 12, color: 'var(--fg2)' }}>★ = currently selected</p>
+      <p style={{ fontSize: 12, color: 'var(--fg2)' }}>{t('alt.hint')}</p>
       <div className="alt-list">
-        {opts.length === 0 && <p style={{ fontSize: 13, color: 'var(--fg2)', padding: '8px 0' }}>No alternatives added yet.</p>}
+        {opts.length === 0 && <p style={{ fontSize: 13, color: 'var(--fg2)', padding: '8px 0' }}>{t('alt.empty')}</p>}
         {opts.map((o, i) => (
           <div key={i} className={`alt-item ${i === selIdx ? 'selected' : ''}`} onClick={() => setSelIdx(i)}>
             <span>{i === selIdx ? '★ ' : ''}</span>
@@ -443,10 +441,10 @@ function AlternativesDialog({ options, selected, onUpdate, onClose }) {
         ))}
       </div>
       <div className="modal-footer">
-        <button type="button" className="btn btn-ghost" onClick={addOpt}>+ Add</button>
+        <button type="button" className="btn btn-ghost" onClick={addOpt}>{t('alt.add')}</button>
         <div style={{ flex: 1 }} />
-        <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn btn-primary" onClick={save}>Apply</button>
+        <button type="button" className="btn btn-ghost" onClick={onClose}>{t('alt.cancel')}</button>
+        <button type="button" className="btn btn-primary" onClick={save}>{t('alt.apply')}</button>
       </div>
     </Modal>
   )
@@ -454,14 +452,15 @@ function AlternativesDialog({ options, selected, onUpdate, onClose }) {
 
 /* ── Trash Modal ────────────────────────────────────────────────────────── */
 function TrashModal({ trash, onRestore, onDelete, onDeleteAll, onClose }) {
+  const { t } = useLang()
   return (
     <Modal onClose={onClose}>
       <div className="modal-header">
-        <h2>Trash ({trash.length})</h2>
+        <h2>{t('trash.title', { count: trash.length })}</h2>
         <button className="btn-icon" onClick={onClose}>✕</button>
       </div>
       {trash.length === 0 ? (
-        <p style={{ color: 'var(--fg2)', fontSize: 13 }}>Trash is empty.</p>
+        <p style={{ color: 'var(--fg2)', fontSize: 13 }}>{t('trash.empty')}</p>
       ) : (
         <div className="trash-list">
           {trash.map((entry, i) => (
@@ -470,16 +469,20 @@ function TrashModal({ trash, onRestore, onDelete, onDeleteAll, onClose }) {
                 {entry.label}
                 {entry.fromFolder && <span className="trash-item-from"> ← {entry.fromFolder}</span>}
               </div>
-              <button className="btn btn-ghost btn-sm" onClick={() => onRestore(entry, i)}>Restore</button>
-              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => { if(window.confirm('Delete permanently?')) onDelete(i) }}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => onRestore(entry, i)}>{t('trash.restore')}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }} onClick={() => { if(window.confirm(t('trash.confirmDeleteOne'))) onDelete(i) }}>✕</button>
             </div>
           ))}
         </div>
       )}
       <div className="modal-footer">
-        {trash.length > 0 && <button className="btn btn-danger btn-sm" onClick={() => { if(window.confirm(`Delete all ${trash.length} items permanently?`)) { onDeleteAll(); onClose() } }}>Delete All</button>}
+        {trash.length > 0 && (
+          <button className="btn btn-danger btn-sm" onClick={() => { if(window.confirm(t('trash.confirmDeleteAll', { n: trash.length }))) { onDeleteAll(); onClose() } }}>
+            {t('trash.deleteAll')}
+          </button>
+        )}
         <div style={{ flex: 1 }} />
-        <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        <button className="btn btn-ghost" onClick={onClose}>{t('trash.close')}</button>
       </div>
     </Modal>
   )
