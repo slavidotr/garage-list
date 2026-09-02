@@ -81,23 +81,35 @@ export function moveItem(items, id, dir) {
   return recurse(items)
 }
 
-export function reorderItem(items, draggedId, targetId) {
-  if (draggedId === targetId) return items
-  function recurse(arr) {
-    const draggedIdx = arr.findIndex(x => x.id === draggedId)
-    const targetIdx = arr.findIndex(x => x.id === targetId)
-    if (draggedIdx !== -1 && targetIdx !== -1) {
-      const copy = [...arr]
-      const [item] = copy.splice(draggedIdx, 1)
-      const insertIdx = copy.findIndex(x => x.id === targetId)
-      copy.splice(insertIdx, 0, item)
-      return copy
-    }
-    return arr.map(item =>
-      item.type === 'folder' ? { ...item, children: recurse(item.children || []) } : item
-    )
+export function containsId(item, id) {
+  if (item.id === id) return true
+  if (item.type === 'folder') return (item.children || []).some(c => containsId(c, id))
+  return false
+}
+
+export function insertBeforeItem(items, newItem, targetId) {
+  const idx = items.findIndex(x => x.id === targetId)
+  if (idx !== -1) {
+    const copy = [...items]
+    copy.splice(idx, 0, newItem)
+    return copy
   }
-  return recurse(items)
+  return items.map(item =>
+    item.type === 'folder' ? { ...item, children: insertBeforeItem(item.children || [], newItem, targetId) } : item
+  )
+}
+
+// Moves `draggedId` next to `targetId` (intoFolder: false) or inside the folder
+// `targetId` (intoFolder: true), removing it from wherever it currently lives —
+// this is what lets drag-and-drop move items across folders, not just reorder siblings.
+export function moveRelative(items, draggedId, targetId, intoFolder) {
+  if (draggedId === targetId) return items
+  const dragged = findItem(items, draggedId)
+  if (!dragged) return items
+  if (dragged.type === 'folder' && containsId(dragged, targetId)) return items
+  const { newItems, removed } = removeItem(items, draggedId)
+  if (!removed) return items
+  return intoFolder ? insertIntoFolder(newItems, removed, targetId) : insertBeforeItem(newItems, removed, targetId)
 }
 
 export function insertIntoFolder(items, item, folderId) {

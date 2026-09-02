@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import {
   STATUS_OPTIONS, STATUS_INFO,
-  newId, updateItem, removeItem, moveItem, reorderItem,
+  newId, updateItem, removeItem, moveItem, moveRelative,
   insertIntoFolder, filterItems, getFolderList,
   sortFolder, wrapInFolder, moveToFolder,
   sumPrices, countParts, countInstalled, fmt,
@@ -163,7 +163,8 @@ export default function BuildPlanner({ items, trash, onChange }) {
               onDeletePart={deletePart}
               onMoveUp={(id) => onChange(moveItem(items, id, -1), trash)}
               onMoveDown={(id) => onChange(moveItem(items, id, 1), trash)}
-              onReorder={(draggedId, targetId) => onChange(reorderItem(items, draggedId, targetId), trash)}
+              onReorder={(draggedId, targetId) => onChange(moveRelative(items, draggedId, targetId, false), trash)}
+              onDropIntoFolder={(draggedId, folderId) => onChange(moveRelative(items, draggedId, folderId, true), trash)}
               onMoveToFolder={handleMoveToFolder}
               onWrapInFolder={handleWrapInFolder}
               onRenameFolder={renameFolder}
@@ -210,7 +211,7 @@ function ItemList({ items, nested, ...handlers }) {
   )
 }
 
-function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddToFolder, onReorder, ...rest }) {
+function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddToFolder, onReorder, onDropIntoFolder, onMoveUp, onMoveDown, ...rest }) {
   const { t } = useLang()
   const [open, setOpen] = useState(true)
   const [dragOver, setDragOver] = useState(false)
@@ -227,7 +228,7 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
         onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', item.id) }}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); const draggedId = e.dataTransfer.getData('text/plain'); if (draggedId && draggedId !== item.id) onReorder(draggedId, item.id) }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); const draggedId = e.dataTransfer.getData('text/plain'); if (draggedId && draggedId !== item.id) onDropIntoFolder(draggedId, item.id) }}
       >
         <span className="drag-handle" title={t('planner.dragToReorder')} onClick={e => e.stopPropagation()}>⠿</span>
         <span className="folder-chevron">{open ? '▼' : '▶'}</span>
@@ -236,6 +237,8 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
         <Dropdown items={[
           { label: t('folder.addPart'),   onClick: (e) => { e.stopPropagation(); onAddToFolder(item.id) } },
           { label: t('folder.rename'),    onClick: (e) => { e.stopPropagation(); onRenameFolder(item) } },
+          { label: t('part.moveUp'),      onClick: (e) => { e.stopPropagation(); onMoveUp(item.id) } },
+          { label: t('part.moveDown'),    onClick: (e) => { e.stopPropagation(); onMoveDown(item.id) } },
           { sep: true },
           { label: t('folder.sortName'),   onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'name') } },
           { label: t('folder.sortStatus'), onClick: (e) => { e.stopPropagation(); onSortFolder(item.id, 'status') } },
@@ -246,11 +249,28 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
       </div>
       {open && children.length > 0 && (
         <div className="folder-children">
-          <ItemList items={children} nested={true} onRenameFolder={onRenameFolder} onDeleteFolder={onDeleteFolder} onSortFolder={onSortFolder} onAddToFolder={onAddToFolder} onReorder={onReorder} {...rest} />
+          <ItemList
+            items={children}
+            nested={true}
+            onRenameFolder={onRenameFolder}
+            onDeleteFolder={onDeleteFolder}
+            onSortFolder={onSortFolder}
+            onAddToFolder={onAddToFolder}
+            onReorder={onReorder}
+            onDropIntoFolder={onDropIntoFolder}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            {...rest}
+          />
         </div>
       )}
       {open && children.length === 0 && (
-        <div style={{ padding: '10px 24px', fontSize: 12, color: 'var(--fg2)' }}>
+        <div
+          className={`folder-empty-drop ${dragOver ? 'drag-over' : ''}`}
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(true) }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const draggedId = e.dataTransfer.getData('text/plain'); if (draggedId && draggedId !== item.id) onDropIntoFolder(draggedId, item.id) }}
+        >
           {t('planner.emptyFolder')}{' '}
           <button style={{ color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', font: 'inherit' }} onClick={() => onAddToFolder(item.id)}>
             {t('planner.addPartToFolder')}
