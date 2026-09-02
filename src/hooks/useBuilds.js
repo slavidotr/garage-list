@@ -30,6 +30,7 @@ export function useBuilds(uid) {
       items:           [],
       trash:           [],
       maintenance_log: EMPTY_MAINT,
+      links:           [],
       isFavourite:     false,
       createdAt:       serverTimestamp(),
       updatedAt:       serverTimestamp(),
@@ -43,6 +44,7 @@ export function useBuilds(uid) {
       items:           data.items || [],
       trash:           data.trash || [],
       maintenance_log: data.maintenance_log || EMPTY_MAINT,
+      links:           data.links || [],
       updatedAt:       serverTimestamp(),
     })
   }, [uid])

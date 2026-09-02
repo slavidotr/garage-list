@@ -8,6 +8,7 @@ import { useLang, LANGS } from '../i18n'
 import BuildPlanner from './BuildPlanner'
 import Budget from './Budget'
 import Maintenance from './Maintenance'
+import Links from './Links'
 import HelpModal from './HelpModal'
 
 export default function Layout({ user }) {
@@ -25,7 +26,7 @@ export default function Layout({ user }) {
   const [helpOpen,     setHelpOpen]     = useState(false)
   const importRef = useRef()
 
-  const TABS = [t('tabs.planner'), t('tabs.budget'), t('tabs.maintenance')]
+  const TABS = [t('tabs.planner'), t('tabs.budget'), t('tabs.maintenance'), t('tabs.links')]
 
   // Auto-select favourite or first build
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function Layout({ user }) {
       items:           ensureIds(build.items || []),
       trash:           build.trash || [],
       maintenance_log: build.maintenance_log || EMPTY_MAINT,
+      links:           build.links || [],
     })
     setDirty(false)
   }
@@ -53,6 +55,7 @@ export default function Layout({ user }) {
       items:           currentBuild.items,
       trash:           currentBuild.trash,
       maintenance_log: currentBuild.maintenance_log,
+      links:           currentBuild.links,
       isFavourite:     currentBuild.isFavourite,
     })
     setDirty(false)
@@ -118,13 +121,14 @@ export default function Layout({ user }) {
     const items  = parsed.items  || []
     const trash  = parsed.trash  || []
     const maint  = parsed.maintenance_log || EMPTY_MAINT
+    const links  = parsed.links  || []
     const name   = file.name.replace(/\.json$/i, '')
 
     try {
       const id = await createBuild(name)
-      await saveBuild(id, { name, items: ensureIds(items), trash, maintenance_log: maint, isFavourite: false })
+      await saveBuild(id, { name, items: ensureIds(items), trash, maintenance_log: maint, links, isFavourite: false })
       setTimeout(() => {
-        loadBuild({ id, name, items: ensureIds(items), trash, maintenance_log: maint, isFavourite: false })
+        loadBuild({ id, name, items: ensureIds(items), trash, maintenance_log: maint, links, isFavourite: false })
         setDrawerOpen(false)
       }, 300)
     } catch {
@@ -270,6 +274,12 @@ export default function Layout({ user }) {
                 <Maintenance
                   log={currentBuild.maintenance_log}
                   onChange={maintenance_log => updateBuild({ maintenance_log })}
+                />
+              )}
+              {tab === 3 && (
+                <Links
+                  links={currentBuild.links}
+                  onChange={links => updateBuild({ links })}
                 />
               )}
             </div>

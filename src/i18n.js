@@ -54,6 +54,7 @@ const en = {
   'tabs.planner': 'Planner',
   'tabs.budget': 'Budget',
   'tabs.maintenance': 'Maintenance',
+  'tabs.links': 'Links',
 
   // Build Planner
   'planner.addPart': '+ Part',
@@ -68,6 +69,7 @@ const en = {
   'planner.emptyFolder': 'Empty —',
   'planner.addPartToFolder': 'add a part',
   'planner.openLink': 'Open link',
+  'planner.dragToReorder': 'Drag to reorder',
 
   // Part context menu
   'part.edit': 'Edit',
@@ -227,6 +229,27 @@ const en = {
   'editEntry.notes': 'Notes',
   'editEntry.cancel': 'Cancel',
   'editEntry.save': 'Save',
+
+  // Links
+  'links.add': '+ Link',
+  'links.empty': 'No links yet',
+  'links.emptyHint': 'Save websites, forums, or product pages you want to keep track of.',
+  'links.openTitle': 'Open link',
+  'links.editTitle': 'Edit',
+  'links.deleteTitle': 'Delete',
+  'links.confirmDelete': 'Delete this link?',
+  'links.addTitleModal': 'Add Link',
+  'links.editTitleModal': 'Edit Link',
+  'links.name': 'Name *',
+  'links.namePlaceholder': 'e.g. Official forum',
+  'links.url': 'URL *',
+  'links.urlPlaceholder': 'https://…',
+  'links.notes': 'Notes',
+  'links.notesPlaceholder': 'Any notes…',
+  'links.required': 'Name and URL are required',
+  'links.cancel': 'Cancel',
+  'links.addSubmit': 'Add Link',
+  'links.save': 'Save',
 }
 
 const es = {
@@ -283,6 +306,7 @@ const es = {
   'tabs.planner': 'Planificador',
   'tabs.budget': 'Presupuesto',
   'tabs.maintenance': 'Mantenimiento',
+  'tabs.links': 'Enlaces',
 
   // Build Planner
   'planner.addPart': '+ Pieza',
@@ -297,6 +321,7 @@ const es = {
   'planner.emptyFolder': 'Vacía —',
   'planner.addPartToFolder': 'añadir pieza',
   'planner.openLink': 'Abrir enlace',
+  'planner.dragToReorder': 'Arrastrar para reordenar',
 
   // Part context menu
   'part.edit': 'Editar',
@@ -456,6 +481,27 @@ const es = {
   'editEntry.notes': 'Notas',
   'editEntry.cancel': 'Cancelar',
   'editEntry.save': 'Guardar',
+
+  // Links
+  'links.add': '+ Enlace',
+  'links.empty': 'Sin enlaces',
+  'links.emptyHint': 'Guarda webs, foros o páginas de productos que quieras tener a mano.',
+  'links.openTitle': 'Abrir enlace',
+  'links.editTitle': 'Editar',
+  'links.deleteTitle': 'Eliminar',
+  'links.confirmDelete': '¿Eliminar este enlace?',
+  'links.addTitleModal': 'Añadir enlace',
+  'links.editTitleModal': 'Editar enlace',
+  'links.name': 'Nombre *',
+  'links.namePlaceholder': 'p. ej. Foro oficial',
+  'links.url': 'URL *',
+  'links.urlPlaceholder': 'https://…',
+  'links.notes': 'Notas',
+  'links.notesPlaceholder': 'Cualquier nota…',
+  'links.required': 'Nombre y URL son obligatorios',
+  'links.cancel': 'Cancelar',
+  'links.addSubmit': 'Añadir enlace',
+  'links.save': 'Guardar',
 }
 
 export const LANGS = { en: 'English', es: 'Español' }

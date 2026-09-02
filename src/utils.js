@@ -81,6 +81,25 @@ export function moveItem(items, id, dir) {
   return recurse(items)
 }
 
+export function reorderItem(items, draggedId, targetId) {
+  if (draggedId === targetId) return items
+  function recurse(arr) {
+    const draggedIdx = arr.findIndex(x => x.id === draggedId)
+    const targetIdx = arr.findIndex(x => x.id === targetId)
+    if (draggedIdx !== -1 && targetIdx !== -1) {
+      const copy = [...arr]
+      const [item] = copy.splice(draggedIdx, 1)
+      const insertIdx = copy.findIndex(x => x.id === targetId)
+      copy.splice(insertIdx, 0, item)
+      return copy
+    }
+    return arr.map(item =>
+      item.type === 'folder' ? { ...item, children: recurse(item.children || []) } : item
+    )
+  }
+  return recurse(items)
+}
+
 export function insertIntoFolder(items, item, folderId) {
   if (!folderId) return [...items, item]
   return items.map(existing => {
