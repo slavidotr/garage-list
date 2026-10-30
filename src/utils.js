@@ -174,7 +174,9 @@ export function filterItems(items, q) {
   return items.reduce((acc, item) => {
     if (item.type === 'folder') {
       const filteredChildren = filterItems(item.children || [], q)
-      if (filteredChildren.length > 0) {
+      if ((item.notes || '').toLowerCase().includes(lq)) {
+        acc.push(item)
+      } else if (filteredChildren.length > 0) {
         acc.push({ ...item, children: filteredChildren })
       }
     } else if (matchesPart(item)) {
@@ -229,3 +231,24 @@ export function moveToFolder(items, partId, targetFolderId) {
 }
 
 export const EMPTY_MAINT = { unit: 'km', current_odometer: 0, items: [], parts: [] }
+
+function csvCell(value) {
+  const str = value == null ? '' : String(value)
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str
+}
+
+export function toCSV(rows) {
+  return rows.map(row => row.map(csvCell).join(',')).join('\r\n')
+}
+
+export function downloadCSV(filename, rows) {
+  const blob = new Blob(['﻿' + toCSV(rows)], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = filename.endsWith('.csv') ? filename : `${filename}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}

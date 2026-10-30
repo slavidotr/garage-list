@@ -5,6 +5,7 @@ import {
   insertIntoFolder, filterItems, getFolderList,
   sortFolder, wrapInFolder, moveToFolder,
   sumPrices, countParts, countInstalled, fmt,
+  downloadCSV,
 } from '../utils'
 import { useLang } from '../i18n'
 
@@ -68,6 +69,10 @@ export default function BuildPlanner({ items, trash, onChange }) {
     onChange(updateItem(items, item.id, { name: name.trim() }), trash)
   }
 
+  function saveFolderNotes(id, notes) {
+    onChange(updateItem(items, id, { notes }), trash)
+  }
+
   function deleteFolder(item) {
     const n = (item.children || []).length
     if (!window.confirm(t('folder.confirmDelete', { name: item.name, n }))) return
@@ -115,6 +120,29 @@ export default function BuildPlanner({ items, trash, onChange }) {
     onChange(sortFolder(items, folderId, key), trash)
   }
 
+  function exportCSV() {
+    const rows = [[t('budget.colPart'), t('partDialog.info'), t('partDialog.qty'), t('partDialog.price'), t('partDialog.status'), t('partDialog.link'), t('partDialog.notes')]]
+    function walk(list, folderName) {
+      for (const item of list) {
+        if (item.type === 'folder') {
+          walk(item.children || [], item.name)
+        } else {
+          rows.push([
+            folderName ? `${folderName} / ${item.part}` : item.part,
+            item.info || '',
+            item.qty || 1,
+            item.price || 0,
+            t(`status.${item.status}`),
+            item.link || item.selected?.link || '',
+            item.notes || '',
+          ])
+        }
+      }
+    }
+    walk(items, null)
+    downloadCSV('build-planner.csv', rows)
+  }
+
   function handleWrapInFolder(item) {
     const name = window.prompt(t('folder.renameName'))
     if (!name?.trim()) return
@@ -145,6 +173,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
         <button className="btn btn-ghost btn-sm" onClick={() => setTrashOpen(true)}>
           🗑 {trash.length > 0 ? `(${trash.length})` : ''}
         </button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV} disabled={items.length === 0}>{t('planner.export')}</button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -168,6 +197,7 @@ export default function BuildPlanner({ items, trash, onChange }) {
               onMoveToFolder={handleMoveToFolder}
               onWrapInFolder={handleWrapInFolder}
               onRenameFolder={renameFolder}
+              onSaveFolderNotes={saveFolderNotes}
               onDeleteFolder={deleteFolder}
               onSortFolder={handleSort}
               onAddToFolder={(folderId) => addPart(folderId)}
@@ -211,13 +241,25 @@ function ItemList({ items, nested, ...handlers }) {
   )
 }
 
-function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddToFolder, onReorder, onDropIntoFolder, onMoveUp, onMoveDown, ...rest }) {
+function FolderRow({ item, onRenameFolder, onSaveFolderNotes, onDeleteFolder, onSortFolder, onAddToFolder, onReorder, onDropIntoFolder, onMoveUp, onMoveDown, ...rest }) {
   const { t } = useLang()
   const [open, setOpen] = useState(true)
   const [dragOver, setDragOver] = useState(false)
+  const [editingNotes, setEditingNotes] = useState(false)
   const children = item.children || []
   const total    = sumPrices(children)
   const inst     = children.filter(c => c.status === 'installed').length
+  const notes    = item.notes || ''
+
+  function editNotes() {
+    setOpen(true)
+    setEditingNotes(true)
+  }
+
+  function finishNotes(value) {
+    setEditingNotes(false)
+    if (value !== notes) onSaveFolderNotes(item.id, value)
+  }
 
   return (
     <div className="tree-folder">
@@ -233,9 +275,11 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
         <span className="drag-handle" title={t('planner.dragToReorder')} onClick={e => e.stopPropagation()}>⠿</span>
         <span className="folder-chevron">{open ? '▼' : '▶'}</span>
         <span className="folder-name">📁 {item.name}</span>
+        {notes.trim() && !open && <span className="folder-notes-badge" title={t('folder.hasNotes')}>📝</span>}
         <span className="folder-meta">{inst}/{children.length} · {fmt(total)}</span>
         <Dropdown items={[
           { label: t('folder.addPart'),   onClick: (e) => { e.stopPropagation(); onAddToFolder(item.id) } },
+          { label: notes.trim() ? t('folder.editNotes') : t('folder.addNotes'), onClick: (e) => { e.stopPropagation(); editNotes() } },
           { label: t('folder.rename'),    onClick: (e) => { e.stopPropagation(); onRenameFolder(item) } },
           { label: t('part.moveUp'),      onClick: (e) => { e.stopPropagation(); onMoveUp(item.id) } },
           { label: t('part.moveDown'),    onClick: (e) => { e.stopPropagation(); onMoveDown(item.id) } },
@@ -247,12 +291,31 @@ function FolderRow({ item, onRenameFolder, onDeleteFolder, onSortFolder, onAddTo
           { label: t('folder.delete'), danger: true, onClick: (e) => { e.stopPropagation(); onDeleteFolder(item) } },
         ]} />
       </div>
+      {open && editingNotes && (
+        <div className="folder-notes">
+          <textarea
+            className="input folder-notes-input"
+            defaultValue={notes}
+            placeholder={t('folder.notesPlaceholder')}
+            rows={Math.max(4, notes.split('\n').length + 1)}
+            autoFocus
+            onBlur={e => finishNotes(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); e.target.blur() } }}
+          />
+        </div>
+      )}
+      {open && !editingNotes && notes.trim() && (
+        <div className="folder-notes folder-notes-view" title={t('folder.clickToEdit')} onClick={editNotes}>
+          {notes}
+        </div>
+      )}
       {open && children.length > 0 && (
         <div className="folder-children">
           <ItemList
             items={children}
             nested={true}
             onRenameFolder={onRenameFolder}
+            onSaveFolderNotes={onSaveFolderNotes}
             onDeleteFolder={onDeleteFolder}
             onSortFolder={onSortFolder}
             onAddToFolder={onAddToFolder}

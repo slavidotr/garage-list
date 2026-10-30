@@ -1,4 +1,4 @@
-import { STATUS_OPTIONS, STATUS_INFO, sumPrices, fmt } from '../utils'
+import { STATUS_OPTIONS, STATUS_INFO, sumPrices, fmt, downloadCSV } from '../utils'
 import { useLang } from '../i18n'
 
 export default function Budget({ items }) {
@@ -34,6 +34,25 @@ export default function Budget({ items }) {
   const rows  = collectRows(items)
   const grand = Object.values(totals).reduce((a, b) => a + b, 0)
 
+  function exportCSV() {
+    const csvRows = [[t('budget.colPart'), t('budget.colCost')]]
+    for (const row of rows) {
+      if (row.kind === 'folder') {
+        csvRows.push([`📁 ${row.name}`, row.total])
+      } else {
+        const qty = row.qty > 1 ? ` ×${row.qty}` : ''
+        csvRows.push([`${row.folder ? row.folder + ' / ' : ''}${row.item.part}${qty}`, row.price])
+      }
+    }
+    csvRows.push([])
+    for (const s of STATUS_OPTIONS.filter(s => totals[s] > 0)) {
+      csvRows.push([t(`status.${s}`), totals[s]])
+    }
+    csvRows.push([])
+    csvRows.push([t('budget.total'), grand])
+    downloadCSV('budget.csv', csvRows)
+  }
+
   if (items.length === 0) {
     return (
       <div className="empty">
@@ -45,6 +64,9 @@ export default function Budget({ items }) {
 
   return (
     <div style={{ padding: '0 0 24px' }}>
+      <div className="maint-toolbar">
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV}>{t('budget.export')}</button>
+      </div>
       <table className="budget-table">
         <thead>
           <tr>

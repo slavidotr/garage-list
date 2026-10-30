@@ -317,6 +317,19 @@ select.input { appearance: auto; }
 .folder-chevron { font-size: 10px; color: var(--fg2); width: 12px; }
 .folder-name { flex: 1; }
 .folder-meta { font-size: 11px; color: var(--fg2); font-weight: 400; }
+.folder-notes-badge { font-size: 12px; }
+.folder-notes {
+  padding: 8px 12px 8px 24px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.folder-notes-view {
+  white-space: pre-wrap;
+  color: var(--fg2);
+  cursor: text;
+}
+.folder-notes-view:hover { background: var(--surface2); }
+.folder-notes-input { width: 100%; resize: vertical; font: inherit; }
 .folder-children { border-top: 1px solid var(--border); }
 .folder-empty-drop {
   padding: 10px 24px;

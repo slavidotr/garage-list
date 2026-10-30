@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import { newId } from '../utils'
+import { newId, downloadCSV } from '../utils'
 import { useLang } from '../i18n'
 
 export default function Links({ links, onChange }) {
   const { t } = useLang()
   const list = links || []
   const [dialog, setDialog] = useState(null)
+
+  function exportCSV() {
+    const rows = [[t('links.name'), t('links.url'), t('links.notes')]]
+    for (const link of list) rows.push([link.name, link.url, link.notes || ''])
+    downloadCSV('links.csv', rows)
+  }
 
   function saveLink(formData) {
     if (dialog.mode === 'add') {
@@ -30,6 +36,7 @@ export default function Links({ links, onChange }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="maint-toolbar">
         <button className="btn btn-primary btn-sm" onClick={() => setDialog({ mode: 'add' })}>{t('links.add')}</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV} disabled={list.length === 0}>{t('links.export')}</button>
       </div>
 
       <div style={{ overflowY: 'auto', flex: 1 }}>

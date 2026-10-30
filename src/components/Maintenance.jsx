@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { newId, EMPTY_MAINT, STATUS_OPTIONS, STATUS_INFO, fmt, sumPrices } from '../utils'
+import { newId, EMPTY_MAINT, STATUS_OPTIONS, STATUS_INFO, fmt, sumPrices, downloadCSV } from '../utils'
 import { useLang } from '../i18n'
 
 function today() {
@@ -155,11 +155,37 @@ export default function Maintenance({ log, onChange }) {
     update({ parts: mparts.filter(p => p.id !== id) })
   }
 
+  function exportCSV() {
+    const rows = [[t('maint.colComponent'), t('maint.colInterval'), t('maint.colLastService'), t('maint.colNextDue'), t('maint.colStatus')]]
+    for (const mitem of mitems) {
+      const isTimeBased   = mitem.intervalType === 'time' || mitem.intervalType === 'date'
+      const isFixedDate   = mitem.intervalType === 'fixedDate'
+      const isDateDisplay = isTimeBased || isFixedDate
+      const { text, lastValue, nextValue } = calcStatus(mitem, odoRaw, today(), t)
+      const intervalUnit = mitem.unit || (isTimeBased ? 'months' : unit)
+      rows.push([
+        mitem.name,
+        isFixedDate ? '—' : (mitem.interval ? `${mitem.interval} ${intervalUnit}` : '—'),
+        lastValue != null ? (isDateDisplay ? lastValue : `${lastValue} ${intervalUnit}`) : '—',
+        nextValue != null ? (isDateDisplay ? nextValue : `${nextValue} ${intervalUnit}`) : '—',
+        text,
+      ])
+    }
+    rows.push([])
+    rows.push([t('maint.parts.title')])
+    rows.push([t('partDialog.name'), t('partDialog.info'), t('partDialog.qty'), t('partDialog.price'), t('partDialog.status'), t('partDialog.notes')])
+    for (const part of mparts) {
+      rows.push([part.name, part.info || '', part.qty || 1, part.price || 0, t(`status.${part.status}`), part.notes || ''])
+    }
+    downloadCSV('maintenance.csv', rows)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div className="maint-toolbar">
         <button className="btn btn-primary btn-sm" onClick={() => setDialog({ type: 'addItem' })}>{t('maint.addItem')}</button>
         <button className="btn btn-ghost btn-sm"   onClick={() => dialog?.type !== 'logService' && setDialog({ type: 'logService', item: null })}>{t('maint.logService')}</button>
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV} disabled={mitems.length === 0 && mparts.length === 0}>{t('maint.export')}</button>
         <div className="odo-group">
           <label>{t('maint.odometer')}</label>
           <input

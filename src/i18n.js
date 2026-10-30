@@ -70,6 +70,7 @@ const en = {
   'planner.addPartToFolder': 'add a part',
   'planner.openLink': 'Open link',
   'planner.dragToReorder': 'Drag to reorder',
+  'planner.export': '↓ Export CSV',
 
   // Part context menu
   'part.edit': 'Edit',
@@ -82,6 +83,11 @@ const en = {
   // Folder context menu
   'folder.addPart': '+ Add Part',
   'folder.rename': 'Rename',
+  'folder.addNotes': 'Add notes',
+  'folder.editNotes': 'Edit notes',
+  'folder.hasNotes': 'Has notes',
+  'folder.clickToEdit': 'Click to edit',
+  'folder.notesPlaceholder': 'Plans, ideas, to-dos for this folder…',
   'folder.sortName': 'Sort by name',
   'folder.sortStatus': 'Sort by status',
   'folder.sortPrice': 'Sort by price',
@@ -145,6 +151,7 @@ const en = {
   'budget.colCost': 'Cost',
   'budget.total': 'Total',
   'budget.installed': '{{n}} installed',
+  'budget.export': '↓ Export CSV',
 
   // Status labels
   'status.planned': 'Planned',
@@ -155,6 +162,7 @@ const en = {
   // Maintenance
   'maint.addItem': '+ Add Item',
   'maint.logService': 'Log Service',
+  'maint.export': '↓ Export CSV',
   'maint.odometer': 'Odometer',
   'maint.noItems': 'No maintenance items',
   'maint.noItemsHint': 'Add components to track service intervals (oil, filters, brakes, etc.)',
@@ -232,6 +240,7 @@ const en = {
 
   // Links
   'links.add': '+ Link',
+  'links.export': '↓ Export CSV',
   'links.empty': 'No links yet',
   'links.emptyHint': 'Save websites, forums, or product pages you want to keep track of.',
   'links.openTitle': 'Open link',
@@ -322,6 +331,7 @@ const es = {
   'planner.addPartToFolder': 'añadir pieza',
   'planner.openLink': 'Abrir enlace',
   'planner.dragToReorder': 'Arrastrar para reordenar',
+  'planner.export': '↓ Exportar CSV',
 
   // Part context menu
   'part.edit': 'Editar',
@@ -334,6 +344,11 @@ const es = {
   // Folder context menu
   'folder.addPart': '+ Añadir pieza',
   'folder.rename': 'Renombrar',
+  'folder.addNotes': 'Añadir notas',
+  'folder.editNotes': 'Editar notas',
+  'folder.hasNotes': 'Tiene notas',
+  'folder.clickToEdit': 'Haz clic para editar',
+  'folder.notesPlaceholder': 'Planes, ideas, tareas para esta carpeta…',
   'folder.sortName': 'Ordenar por nombre',
   'folder.sortStatus': 'Ordenar por estado',
   'folder.sortPrice': 'Ordenar por precio',
@@ -397,6 +412,7 @@ const es = {
   'budget.colCost': 'Coste',
   'budget.total': 'Total',
   'budget.installed': '{{n}} instaladas',
+  'budget.export': '↓ Exportar CSV',
 
   // Status labels
   'status.planned': 'Planificado',
@@ -407,6 +423,7 @@ const es = {
   // Maintenance
   'maint.addItem': '+ Añadir elemento',
   'maint.logService': 'Registrar servicio',
+  'maint.export': '↓ Exportar CSV',
   'maint.odometer': 'Odómetro',
   'maint.noItems': 'Sin elementos de mantenimiento',
   'maint.noItemsHint': 'Añade componentes para seguir los intervalos de servicio (aceite, filtros, frenos, etc.)',
@@ -484,6 +501,7 @@ const es = {
 
   // Links
   'links.add': '+ Enlace',
+  'links.export': '↓ Exportar CSV',
   'links.empty': 'Sin enlaces',
   'links.emptyHint': 'Guarda webs, foros o páginas de productos que quieras tener a mano.',
   'links.openTitle': 'Abrir enlace',
