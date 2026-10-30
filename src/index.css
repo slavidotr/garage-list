@@ -317,6 +317,36 @@ select.input { appearance: auto; }
 .folder-chevron { font-size: 10px; color: var(--fg2); width: 12px; }
 .folder-name { flex: 1; }
 .folder-meta { font-size: 11px; color: var(--fg2); font-weight: 400; }
+.files-page { display: flex; flex-direction: column; height: 100%; }
+.files-page.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.files-error { padding: 6px 12px; font-size: 12px; color: var(--danger); }
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px;
+}
+.file-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--surface2);
+}
+.file-card:hover { border-color: var(--accent); }
+.file-thumb {
+  aspect-ratio: 4 / 3;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--border);
+  overflow: hidden;
+}
+.file-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.file-icon { font-size: 40px; }
+.file-card-title { padding: 6px 8px 2px; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-card-notes { padding: 0 8px 6px; font-size: 11px; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-viewer-img { max-width: 100%; max-height: 60vh; display: block; margin: 0 auto 12px; border-radius: var(--radius); }
+.file-viewer-other { padding: 24px; text-align: center; font-size: 14px; }
+
 .folder-notes-badge { font-size: 12px; }
 .folder-notes {
   padding: 8px 12px 8px 24px;

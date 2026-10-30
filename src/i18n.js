@@ -55,6 +55,7 @@ const en = {
   'tabs.budget': 'Budget',
   'tabs.maintenance': 'Maintenance',
   'tabs.links': 'Links',
+  'tabs.files': 'Files',
 
   // Build Planner
   'planner.addPart': '+ Part',
@@ -259,6 +260,21 @@ const en = {
   'links.cancel': 'Cancel',
   'links.addSubmit': 'Add Link',
   'links.save': 'Save',
+
+  'files.upload': '+ Upload',
+  'files.hint': 'or drag & drop / paste images here',
+  'files.uploading': 'Uploading {{n}}…',
+  'files.errTooBig': 'Too large to store (max ~650 KB for non-images): {{names}}',
+  'files.empty': 'No files yet',
+  'files.emptyHint': 'Upload screenshots, photos and ideas you have seen. You can also paste or drop images.',
+  'files.confirmDelete': 'Delete "{{name}}"?',
+  'files.title': 'Title',
+  'files.notes': 'Notes',
+  'files.notesPlaceholder': 'What caught your eye, where you saw it…',
+  'files.delete': 'Delete',
+  'files.download': '↓ Download',
+  'files.cancel': 'Cancel',
+  'files.save': 'Save',
 }
 
 const es = {
@@ -316,6 +332,7 @@ const es = {
   'tabs.budget': 'Presupuesto',
   'tabs.maintenance': 'Mantenimiento',
   'tabs.links': 'Enlaces',
+  'tabs.files': 'Archivos',
 
   // Build Planner
   'planner.addPart': '+ Pieza',
@@ -520,6 +537,21 @@ const es = {
   'links.cancel': 'Cancelar',
   'links.addSubmit': 'Añadir enlace',
   'links.save': 'Guardar',
+
+  'files.upload': '+ Subir',
+  'files.hint': 'o arrastra / pega imágenes aquí',
+  'files.uploading': 'Subiendo {{n}}…',
+  'files.errTooBig': 'Demasiado grande para guardar (máx. ~650 KB si no es imagen): {{names}}',
+  'files.empty': 'Sin archivos',
+  'files.emptyHint': 'Sube capturas, fotos e ideas que hayas visto. También puedes pegar o arrastrar imágenes.',
+  'files.confirmDelete': '¿Eliminar "{{name}}"?',
+  'files.title': 'Título',
+  'files.notes': 'Notas',
+  'files.notesPlaceholder': 'Qué te llamó la atención, dónde lo viste…',
+  'files.delete': 'Eliminar',
+  'files.download': '↓ Descargar',
+  'files.cancel': 'Cancelar',
+  'files.save': 'Guardar',
 }
 
 export const LANGS = { en: 'English', es: 'Español' }

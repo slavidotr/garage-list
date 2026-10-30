@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, serverTimestamp, query, orderBy,
+  onSnapshot, serverTimestamp, query, orderBy, getDocs,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { ensureIds, EMPTY_MAINT } from '../utils'
@@ -50,6 +50,9 @@ export function useBuilds(uid) {
   }, [uid])
 
   const deleteBuild = useCallback(async id => {
+    // Subcollections aren't removed with their parent doc, so clear files first
+    const files = await getDocs(collection(db, 'users', uid, 'builds', id, 'files'))
+    await Promise.all(files.docs.map(d => deleteDoc(d.ref)))
     await deleteDoc(doc(db, 'users', uid, 'builds', id))
   }, [uid])
 

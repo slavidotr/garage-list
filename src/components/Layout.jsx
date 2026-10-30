@@ -9,6 +9,7 @@ import BuildPlanner from './BuildPlanner'
 import Budget from './Budget'
 import Maintenance from './Maintenance'
 import Links from './Links'
+import Files from './Files'
 import HelpModal from './HelpModal'
 
 export default function Layout({ user }) {
@@ -26,7 +27,7 @@ export default function Layout({ user }) {
   const [helpOpen,     setHelpOpen]     = useState(false)
   const importRef = useRef()
 
-  const TABS = [t('tabs.planner'), t('tabs.budget'), t('tabs.maintenance'), t('tabs.links')]
+  const TABS = [t('tabs.planner'), t('tabs.budget'), t('tabs.maintenance'), t('tabs.links'), t('tabs.files')]
 
   // Auto-select favourite or first build
   useEffect(() => {
@@ -282,6 +283,7 @@ export default function Layout({ user }) {
                   onChange={links => updateBuild({ links })}
                 />
               )}
+              {tab === 4 && <Files uid={user.uid} buildId={currentBuild.id} />}
             </div>
           </>
         ) : (
